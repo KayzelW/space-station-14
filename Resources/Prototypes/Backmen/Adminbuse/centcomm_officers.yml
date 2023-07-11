@@ -59,13 +59,13 @@
   - type: RandomMetadata
   - type: RandomHumanoidAppearance
   - type: SpecForce
+    actionName: CentcomFtlAction
     requirements:
     - !type:OverallPlaytimeRequirement
       time: 36000
     - !type:RoleTimeRequirement
       role: JobIAA
       time: 18000
-
 #-----------------------------------------
 
 - type: entity
@@ -103,6 +103,7 @@
   - type: RandomMetadata
   - type: RandomHumanoidAppearance
   - type: SpecForce
+    actionName: CentcomFtlAction
     requirements:
     - !type:RoleTimeRequirement
       role: JobIAA
@@ -175,7 +176,7 @@
     neck: CombatKnifeSpetsnaz
     eyes: ClothingEyesGlassesSecurity
     gloves: ClothingHandsGlovesCombat
-    outerClothing: ClothingOuterVestKevlar
+    outerClothing: ClothingOuterArmorBasic
     suitstorage: WeaponPistolMk58
     head: ClothingHeadHatBeretHoS
     id: IDCardCentComGavnaOfficerSesurity
@@ -201,6 +202,7 @@
   - type: RandomMetadata
   - type: RandomHumanoidAppearance
   - type: SpecForce
+    actionName: CentcomFtlAction
     requirements:
     - !type:DepartmentTimeRequirement
       department: Security
