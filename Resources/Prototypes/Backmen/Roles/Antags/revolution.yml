@@ -1,0 +1,13 @@
+- type: antag
+  id: RevMember
+  name: roles-antag-rev-member-name
+  antagonist: true
+  setPreference: true
+  objective: roles-antag-rev-member-objective
+
+- type: antag
+  id: RevLeader
+  name: roles-antag-rev-leader-name
+  antagonist: true
+  setPreference: true
+  objective: roles-antag-rev-leader-objective

@@ -1,0 +1,15 @@
+- type: entity
+  id: RevolutionRule
+  parent: BaseGameRule
+  noSpawn: true
+  components:
+    - type: RevolutionRule
+      faction: Syndicate
+      supervisorRoles:
+        - Captain
+        - ChiefMedicalOfficer
+        - JobChiefEngineer
+        - HeadOfPersonnel
+        - Quartermaster
+        - HeadOfSecurity
+        - ResearchDirector

@@ -20,7 +20,11 @@ public sealed class RevolutionRuleComponent:Component
      DataField("supervisorRoles", customTypeSerializer: typeof(PrototypeIdListSerializer<JobPrototype>))]
     public List<string> SupervisorRoles = new();
 
-    [DataField("minPlayers")] public int MinPlayers = 20;
+    public Dictionary<string,EntityUid> Leaders = new();
+
+    public EntityUid Captain = EntityUid.Invalid;
+
+    [DataField("minPlayers")] public int MinPlayers = 1;
 
     [DataField("maxOps")] public int MaxPlayers = 10;
 

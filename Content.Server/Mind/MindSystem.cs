@@ -456,7 +456,6 @@ public sealed class MindSystem : EntitySystem
             _adminLogger.Add(LogType.Mind, LogImpact.Low, $"'{condition.Title}' added to mind of {MindOwnerLoggingString(mind)}");
         }
 
-
         mind.Objectives.Add(objective);
         return true;
     }

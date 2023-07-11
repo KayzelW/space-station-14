@@ -833,6 +833,7 @@ public sealed class NukeopsRuleSystem : GameRuleSystem<NukeopsRuleComponent>
                 _chatManager.SendAdminAnnouncement(Loc.GetString("nukeops-not-enough-ready-players",
                     ("readyPlayersCount", ev.Players.Length), ("minimumPlayers", minPlayers)));
                 ev.Cancel();
+
                 continue;
             }
 
