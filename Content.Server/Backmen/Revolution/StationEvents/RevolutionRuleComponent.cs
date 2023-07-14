@@ -28,7 +28,7 @@ public sealed class RevolutionRuleComponent:Component
 
     [DataField("maxOps")] public int MaxPlayers = 10;
 
-    [DataField("revPerPlayer")] public double RevPerPlayer = 0.1;
+    [DataField("revPerPlayer")] public double RevPerPlayer = 3;
 
     [ViewVariables(VVAccess.ReadWrite),
      DataField("capitanRole", customTypeSerializer: typeof(PrototypeIdSerializer<JobPrototype>))]

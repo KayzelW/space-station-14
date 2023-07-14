@@ -11,6 +11,7 @@ using Content.Server.Objectives;
 using Content.Server.Players;
 using Content.Server.Power.EntitySystems;
 using Content.Server.Preferences.Managers;
+using Content.Server.RandomMetadata;
 using Content.Server.RoundEnd;
 using Content.Server.Shuttles.Systems;
 using Content.Server.Station.Components;
@@ -54,42 +55,19 @@ public sealed class RevolutionRuleSystem : StationEventSystem<RevolutionRuleComp
         SubscribeLocalEvent<RevolutionOperativeComponent, ComponentRemove>(OnComponentRemove);
         SubscribeLocalEvent<RevolutionOperativeComponent, MobStateChangedEvent>(OnMobStateChanged);
         SubscribeLocalEvent<GameRunLevelChangedEvent>(OnRunLevelChanged);
-        SubscribeLocalEvent<RevolutionOperativeComponent, MindAddedMessage>(OnMindAdded);
         SubscribeLocalEvent<RoundStartAttemptEvent>(OnStartAttempt);
-        SubscribeLocalEvent<RulePlayerSpawningEvent>(OnPlayersSpawning);
+        SubscribeLocalEvent<RevolutionOperativeComponent, MapInitEvent>(OnMapInit, after: new[] { typeof(RandomMetadataSystem) });
         SubscribeLocalEvent<RulePlayerJobsAssignedEvent>(OnJobAssigned);
 
         _log = Logger.GetSawmill($"ecs.systems.{nameof(RevolutionRuleSystem)}");
     }
 
-    private void OnJobAssigned(RulePlayerJobsAssignedEvent ev)
+    private void OnMapInit(EntityUid uid, RevolutionOperativeComponent component, MapInitEvent args)
     {
-        var query = EntityQueryEnumerator<RevolutionRuleComponent, GameRuleComponent>();
-        while (query.MoveNext(out var uid, out var revolution, out var gameRule))
-        {
-            foreach (var session in ev.Players)
-            {
-                var mind = session.Data.ContentData()?.Mind;
-                if (mind?.CurrentJob == null || session.AttachedEntity == null)
-                {
-                    continue;
-                }
 
-                var job = mind.CurrentJob.Prototype.ID;
-                if (revolution.SupervisorRoles.Contains(job))
-                {
-                    revolution.Leaders.Add(job,session.AttachedEntity.Value);
-                }
-
-                if (revolution.CapitanRole == job)
-                {
-                    revolution.Captain = session.AttachedEntity.Value;
-                }
-            }
-        }
     }
 
-    private void OnPlayersSpawning(RulePlayerSpawningEvent ev)
+    private void OnJobAssigned(RulePlayerJobsAssignedEvent ev)
     {
         var query = EntityQueryEnumerator<RevolutionRuleComponent, GameRuleComponent>();
         while (query.MoveNext(out var uid, out var revolution, out var gameRule))
@@ -136,12 +114,20 @@ public sealed class RevolutionRuleSystem : StationEventSystem<RevolutionRuleComp
                 {
                     player = _random.PickAndTake(prefLeaderList);
                     playerList.Remove(player);
+                    if (prefMemberList.Contains(player))
+                    {
+                        prefMemberList.Remove(player);
+                    }
                     _log.Info( "Selected a revolution leader.");
                 }
                 else
                 {
                     player = _random.PickAndTake(prefMemberList);
                     playerList.Remove(player);
+                    if (prefLeaderList.Contains(player))
+                    {
+                        prefLeaderList.Remove(player);
+                    }
                     _log.Info( "Selected a revolution.");
                 }
 
@@ -167,11 +153,6 @@ public sealed class RevolutionRuleSystem : StationEventSystem<RevolutionRuleComp
                 }
 
 
-                var inCharacterName = string.Empty;
-                if (mind.OwnedEntity != null)
-                {
-                }
-
                 if (mind.Session != null)
                 {
                     var message = isLeader?Loc.GetString("revolution-leader-role-greeting") : Loc.GetString("revolution-member-role-greeting");
@@ -191,14 +172,29 @@ public sealed class RevolutionRuleSystem : StationEventSystem<RevolutionRuleComp
                         }
                     }
 
-                    //gets the names now in case the players leave.
-                    //this gets unhappy if people with the same name get chose. Probably shouldn't happen.
-                    revolution.OperativePlayers.Add(inCharacterName, mind.Session);
-
                     // I went all the way to ChatManager.cs and all i got was this lousy T-shirt
                     // You got a free T-shirt!?!?
                     _chatManager.ChatMessageToOne(Shared.Chat.ChatChannel.Server, message,
                         wrappedMessage, default, false, mind.Session.ConnectedClient, Color.Plum);
+                }
+            }
+            foreach (var session in ev.Players)
+            {
+                var mind = session.Data.ContentData()?.Mind;
+                if (mind?.CurrentJob == null || session.AttachedEntity == null)
+                {
+                    continue;
+                }
+
+                var job = mind.CurrentJob.Prototype.ID;
+                if (revolution.SupervisorRoles.Contains(job))
+                {
+                    revolution.Leaders.Add(job,session.AttachedEntity.Value);
+                }
+
+                if (revolution.CapitanRole == job)
+                {
+                    revolution.Captain = session.AttachedEntity.Value;
                 }
             }
         }
@@ -229,43 +225,6 @@ public sealed class RevolutionRuleSystem : StationEventSystem<RevolutionRuleComp
         }
     }
 
-    private void OnMindAdded(EntityUid uid, RevolutionOperativeComponent component, MindAddedMessage args)
-    {
-        if (!TryComp<MindContainerComponent>(uid, out var mindContainerComponent) ||
-            mindContainerComponent.Mind == null)
-            return;
-
-        var mind = mindContainerComponent.Mind;
-        if (!_prototypeManager.TryIndex<ObjectivePrototype>("KillRevolutionObjective", out var condition))
-        {
-            return;
-        }
-        foreach (var revolutioners in EntityQuery<RevolutionRuleComponent>())
-        {
-            foreach (var rev in EntityQuery<RevolutionOperativeComponent>())
-            {
-                _mindSystem.AddRole(mind,
-                    new RevolutionersRole(mind,
-                        _prototypeManager.Index<AntagPrototype>(component.IsLeader
-                            ? RevolutionRuleComponent.RevLeaderProto
-                            : RevolutionRuleComponent.RevMemberProto)));
-                _mindSystem.TryAddObjective(mind,condition);
-            }
-
-            if (!_mindSystem.TryGetSession(mind, out var playerSession))
-                return;
-            if (revolutioners.OperativePlayers.ContainsValue(playerSession))
-                return;
-            if (GameTicker.RunLevel != GameRunLevel.InRound)
-                return;
-
-            if (revolutioners.TargetStation != null && !string.IsNullOrEmpty(Name(revolutioners.TargetStation.Value)))
-            {
-                _chatManager.DispatchServerMessage(playerSession,
-                    Loc.GetString("revolution-welcome", ("station", revolutioners.TargetStation.Value)));
-            }
-        }
-    }
 
     private void OnMobStateChanged(EntityUid uid, RevolutionOperativeComponent component, MobStateChangedEvent ev)
     {
@@ -461,6 +420,43 @@ public sealed class RevolutionRuleSystem : StationEventSystem<RevolutionRuleComp
                 revolutioners.OperativePlayers.Add(name, session);
             RemComp<PacifistComponent>(uid);
             RemComp<PacifiedComponent>(uid);
+            Robust.Shared.Timing.Timer.Spawn(0, () =>
+            {
+                if (!TryComp<MindContainerComponent>(uid, out var mindContainerComponent) ||
+                    mindContainerComponent.Mind == null)
+                    return;
+
+                var mind = mindContainerComponent.Mind;
+                if (!_prototypeManager.TryIndex<ObjectivePrototype>("KillObjectiveRevolution", out var condition))
+                {
+                    return;
+                }
+                foreach (var revolutioners in EntityQuery<RevolutionRuleComponent>())
+                {
+                    foreach (var rev in EntityQuery<RevolutionOperativeComponent>())
+                    {
+                        _mindSystem.AddRole(mind,
+                            new RevolutionersRole(mind,
+                                _prototypeManager.Index<AntagPrototype>(component.IsLeader
+                                    ? RevolutionRuleComponent.RevLeaderProto
+                                    : RevolutionRuleComponent.RevMemberProto)));
+                        _mindSystem.TryAddObjective(mind,condition);
+                    }
+
+                    if (!_mindSystem.TryGetSession(mind, out var playerSession))
+                        return;
+                    if (revolutioners.OperativePlayers.ContainsValue(playerSession))
+                        return;
+                    if (GameTicker.RunLevel != GameRunLevel.InRound)
+                        return;
+
+                    if (revolutioners.TargetStation != null && !string.IsNullOrEmpty(Name(revolutioners.TargetStation.Value)))
+                    {
+                        _chatManager.DispatchServerMessage(playerSession,
+                            Loc.GetString("revolution-welcome", ("station", revolutioners.TargetStation.Value)));
+                    }
+                }
+            });
         }
     }
 }

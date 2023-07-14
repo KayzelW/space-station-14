@@ -1,20 +1,20 @@
-- type: objective
-  id: KillRevolutionObjective
-  issuer: viva la revolution
-  difficultyOverride: 3.0
-  conditions:
-  - !type:RevolutionKillCondition:
-    targetJob: Captain
-  - !type:RevolutionKillCondition:
-    targetJob: ChiefMedicalOfficer
-  - !type:RevolutionKillCondition:
-    targetJob: JobChiefEngineer
-  - !type:RevolutionKillCondition:
-    targetJob: HeadOfPersonnel
-  - !type:RevolutionKillCondition:
+ - type: objective
+   id: KillObjectiveRevolution
+   issuer: viva la revolution
+   difficultyOverride: 3.0
+   conditions:
+   - !type:RevolutionKillCondition:
+     targetJob: Captain
+   - !type:RevolutionKillCondition:
+     targetJob: ChiefMedicalOfficer
+   - !type:RevolutionKillCondition:
+     targetJob: JobChiefEngineer
+   - !type:RevolutionKillCondition:
+     targetJob: HeadOfPersonnel
+   - !type:RevolutionKillCondition:
     targetJob: Quartermaster
-  - !type:RevolutionKillCondition:
-    targetJob: HeadOfSecurity
-  - !type:RevolutionKillCondition:
-    targetJob: ResearchDirector
-  canBeDuplicate: false
+   - !type:RevolutionKillCondition:
+     targetJob: HeadOfSecurity
+   - !type:RevolutionKillCondition:
+     targetJob: ResearchDirector
+   canBeDuplicate: false
