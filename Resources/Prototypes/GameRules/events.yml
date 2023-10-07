@@ -7,10 +7,10 @@
     weight: 10
     startDelay: 30
     duration: 35
-    startAudio: # Corvax-Announcements
-      path: /Audio/Corvax/Announcements/flux.ogg
-      params:
-        volume: -4
+#    startAudio: # Corvax-Announcements
+#      path: /Audio/Corvax/Announcements/flux.ogg
+#      params:
+#        volume: -4
   - type: AnomalySpawnRule
 
 - type: entity
@@ -22,10 +22,6 @@
     weight: 5
     startDelay: 30
     duration: 35
-    startAudio: # Corvax-Announcements
-      path: /Audio/Corvax/Announcements/blusp_anomalies.ogg
-      params:
-        volume: -4
   - type: BluespaceArtifactRule
 
 - type: entity
@@ -65,13 +61,25 @@
 
 - type: entity
   parent: BaseGameRule
-  id: Dragon
+  id: ClosetSkeleton
+  noSpawn: true
+  components:
+  - type: StationEvent
+    weight: 10
+    duration: 1
+  - type: RandomEntityStorageSpawnRule
+    prototype: MobSkeletonCloset
+
+- type: entity
+  parent: BaseGameRule
+  id: DragonSpawn
   noSpawn: true
   components:
   - type: StationEvent
     weight: 5
     duration: 1
     earliestStart: 45
+    reoccurrenceDelay: 60
     minimumPlayers: 20
   - type: RandomSpawnRule
     prototype: SpawnPointGhostDragon
@@ -93,6 +101,19 @@
       - MobMouse2
       playersPerCarrierBlob: 30
       maxCarrierBlob: 3
+
+- type: entity
+  parent: BaseGameRule
+  id: NinjaSpawn
+  noSpawn: true
+  components:
+  - type: StationEvent
+    weight: 10
+    duration: 1
+    earliestStart: 30
+    reoccurrenceDelay: 60
+    minimumPlayers: 40
+  - type: NinjaSpawnRule
 
 - type: entity
   parent: BaseGameRule
@@ -139,18 +160,18 @@
     startDelay: 20
   - type: GasLeakRule
 
-- type: entity
-  id: KudzuGrowth
-  parent: BaseGameRule
-  noSpawn: true
-  components:
-  - type: StationEvent
-    earliestStart: 15
-    minimumPlayers: 15
-    weight: 5
-    startDelay: 50
-    duration: 240
-  - type: KudzuGrowthRule
+#- type: entity
+#  id: KudzuGrowth
+#  parent: BaseGameRule
+#  noSpawn: true
+#  components:
+#  - type: StationEvent
+#    earliestStart: 15
+#    minimumPlayers: 15
+#    weight: 5
+#    startDelay: 50
+#    duration: 240
+#  - type: KudzuGrowthRule
 
 - type: entity
   id: MeteorSwarm
@@ -188,13 +209,11 @@
   - type: VentCrittersRule
     entries:
     - id: MobMouse
-      prob: 0.015
+      prob: 0.02
     - id: MobMouse1
-      prob: 0.015
+      prob: 0.02
     - id: MobMouse2
-      prob: 0.015
-    - id: MobRatServant
-      prob: 0.015
+      prob: 0.02
     specialEntries:
     - id: SpawnPointGhostRatKing
       prob: 0.005
@@ -401,8 +420,8 @@
   components:
   - type: StationEvent
     startAnnouncement: station-event-immovable-rod-start-announcement
-    startAudio:
-      path: /Audio/Announcements/attention.ogg
+    #startAudio: # USE TTS
+    #  path: /Audio/Announcements/attention.ogg
     weight: 5
     duration: 1
     earliestStart: 45

@@ -1,12 +1,12 @@
+using System.Linq;
+using Content.Shared.Actions;
+using Content.Shared.FixedPoint;
 using Robust.Shared.Prototypes;
 using Robust.Shared.Serialization;
-using Robust.Shared.Serialization.TypeSerializers.Implementations.Custom.Prototype.List;
-using Robust.Shared.Serialization.TypeSerializers.Implementations.Custom.Prototype.Dictionary;
 using Robust.Shared.Serialization.TypeSerializers.Implementations.Custom.Prototype;
+using Robust.Shared.Serialization.TypeSerializers.Implementations.Custom.Prototype.Dictionary;
+using Robust.Shared.Serialization.TypeSerializers.Implementations.Custom.Prototype.List;
 using Robust.Shared.Utility;
-using Content.Shared.Actions.ActionTypes;
-using Content.Shared.FixedPoint;
-using System.Linq;
 
 namespace Content.Shared.Store;
 
@@ -71,7 +71,7 @@ public partial class ListingData : IEquatable<ListingData>, ICloneable
     /// <summary>
     /// The action that is given when the listing is purchased.
     /// </summary>
-    [DataField("productAction", customTypeSerializer: typeof(PrototypeIdSerializer<InstantActionPrototype>))]
+    [DataField("productAction", customTypeSerializer: typeof(PrototypeIdSerializer<EntityPrototype>))]
     public string? ProductAction;
 
     /// <summary>
@@ -85,6 +85,12 @@ public partial class ListingData : IEquatable<ListingData>, ICloneable
     /// </summary>
     public int PurchaseAmount = 0;
 
+    /// <summary>
+    /// Used to delay purchase of some items.
+    /// </summary>
+    [DataField("restockTime")]
+    public int RestockTime;
+
     public bool Equals(ListingData? listing)
     {
         if (listing == null)
@@ -96,7 +102,7 @@ public partial class ListingData : IEquatable<ListingData>, ICloneable
             Description != listing.Description ||
             ProductEntity != listing.ProductEntity ||
             ProductAction != listing.ProductAction ||
-            ProductEvent != listing.ProductEvent)
+            ProductEvent?.ToString() != listing.ProductEvent?.ToString())
             return false;
 
         if (Icon != null && !Icon.Equals(listing.Icon))
@@ -137,6 +143,7 @@ public partial class ListingData : IEquatable<ListingData>, ICloneable
             ProductAction = ProductAction,
             ProductEvent = ProductEvent,
             PurchaseAmount = PurchaseAmount,
+            RestockTime = RestockTime,
         };
     }
 }

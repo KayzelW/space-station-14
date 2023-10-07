@@ -1,4 +1,3 @@
-/*
 using Content.Server.DoAfter;
 using Content.Server.NPC.Systems;
 using Content.Shared.DoAfter;
@@ -25,7 +24,7 @@ namespace Content.Server.Backmen.Psionics.NPC.GlimmerWisp
         [Dependency] private readonly ActionBlockerSystem _actionBlocker = default!;
         [Dependency] private readonly PopupSystem _popups = default!;
         [Dependency] private readonly AudioSystem _audioSystem = default!;
-        [Dependency] private readonly NPCJukeSystem _combatTargetSystem = default!;
+        [Dependency] private readonly NPCSystem _combatTargetSystem = default!;
         public override void Initialize()
         {
             base.Initialize();
@@ -69,10 +68,10 @@ namespace Content.Server.Backmen.Psionics.NPC.GlimmerWisp
             if (args.Cancelled)
             {
                 if (TryComp<SharedPullableComponent>(args.Args.Target.Value, out var pullable) && pullable.Puller != null)
-                    _combatTargetSystem.StartHostility(uid, pullable.Puller.Value);
+                    _combatTargetSystem.SetBlackboard(uid,"Target",pullable.Puller.Value); // backmen
 
-                if (TryComp<BeingCarriedComponent>(args.Args.Target.Value, out var carried))
-                    _combatTargetSystem.StartHostility(uid, carried.Carrier);
+                //if (TryComp<BeingCarriedComponent>(args.Args.Target.Value, out var carried))
+                //    _combatTargetSystem.StartHostility(uid, carried.Carrier);
 
                 return;
             }
@@ -111,7 +110,7 @@ namespace Content.Server.Backmen.Psionics.NPC.GlimmerWisp
             if (!Resolve(uid, ref component))
                 return;
 
-           component.DrainTarget = target;
+            component.DrainTarget = target;
             _popups.PopupEntity(Loc.GetString("life-drain-second-start", ("wisp", uid)), target, target, Shared.Popups.PopupType.LargeCaution);
             _popups.PopupEntity(Loc.GetString("life-drain-third-start", ("wisp", uid), ("target", target)), target, Filter.PvsExcept(target), true, Shared.Popups.PopupType.LargeCaution);
 
@@ -119,7 +118,7 @@ namespace Content.Server.Backmen.Psionics.NPC.GlimmerWisp
             component.IsDraining = true;
 
             var ev = new GlimmerWispDrainDoAfterEvent();
-            var args = new DoAfterArgs(uid, component.DrainDelay, ev, uid, target: target)
+            var args = new DoAfterArgs(EntityManager ,uid, component.DrainDelay, ev, uid, target: target)
             {
                 BreakOnTargetMove = true,
                 BreakOnUserMove = false,
@@ -131,4 +130,3 @@ namespace Content.Server.Backmen.Psionics.NPC.GlimmerWisp
         }
     }
 }
-*/

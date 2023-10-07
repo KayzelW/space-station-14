@@ -26,4 +26,19 @@
   id: JobCentralCommandAdmiral
 
 - type: playTimeTracker
+  id: JobDeliveryman
+
+- type: playTimeTracker
   id: JobPrisoner
+
+- type: playTimeTracker
+  id: JobFugitive
+
+- type: playTimeTracker
+  id: JobStudent
+
+- type: playTimeTracker
+  id: JobExplorer
+
+- type: playTimeTracker
+  id: JobFreelancerGear

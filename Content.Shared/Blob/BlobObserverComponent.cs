@@ -6,7 +6,7 @@ using Robust.Shared.Serialization;
 
 namespace Content.Shared.Blob;
 
-[RegisterComponent, NetworkedComponent]
+[RegisterComponent, NetworkedComponent, AutoGenerateComponentState(false)]
 public sealed partial class BlobObserverComponent : Component
 {
     [ViewVariables(VVAccess.ReadOnly)]
@@ -18,14 +18,10 @@ public sealed partial class BlobObserverComponent : Component
     [ViewVariables(VVAccess.ReadOnly)]
     public bool CanMove = true;
 
-    [ViewVariables(VVAccess.ReadOnly)]
+    [ViewVariables(VVAccess.ReadOnly), AutoNetworkedField]
     public BlobChemType SelectedChemId = BlobChemType.ReactiveSpines;
-}
 
-[Serializable, NetSerializable]
-public sealed class BlobChemSwapComponentState : ComponentState
-{
-    public BlobChemType SelectedChem;
+    public override bool SendOnlyToOwner => true;
 }
 
 [Serializable, NetSerializable]

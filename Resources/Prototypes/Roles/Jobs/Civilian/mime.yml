@@ -17,10 +17,10 @@
     components:
     - type: MimePowers
   #start-backmen: currency
-  minBankBalance: 300
-  maxBankBalance: 500
+  minBankBalance: 150
+  maxBankBalance: 250
   wageDepartment: Civilian
-  wage: 100
+  wage: 50
   #end-backmen: currency
 
 - type: startingGear
@@ -40,3 +40,15 @@
   innerclothingskirt: ClothingUniformJumpskirtMime
   satchel: ClothingBackpackSatchelMimeFilled
   duffelbag: ClothingBackpackDuffelMimeFilled
+
+- type: entity
+  id: ActionMimeInvisibleWall
+  name: Create Invisible Wall
+  description: Create an invisible wall in front of you, if placeable there.
+  noSpawn: true
+  components:
+  - type: InstantAction
+    priority: -1
+    useDelay: 30
+    icon: Structures/Walls/solid.rsi/full.png
+    event: !type:InvisibleWallActionEvent
