@@ -1,15 +1,14 @@
 ﻿using Content.Shared.Backmen.GhostTheme;
+using Content.Shared.GameTicking;
 using Robust.Client.GameObjects;
-using Robust.Shared.GameStates;
+using Robust.Shared.Configuration;
 using Robust.Shared.Prototypes;
-using Robust.Shared.Serialization.Manager;
 
 namespace Content.Client.Backmen.GhostTheme;
 
-public sealed class GhostThemeSystem: EntitySystem
+public sealed class GhostThemeSystem : EntitySystem
 {
-    [Dependency] private IPrototypeManager _prototypeManager = default!;
-    [Dependency] private readonly ISerializationManager _serialization = default!;
+    [Dependency] private readonly IPrototypeManager _prototypeManager = default!;
     public override void Initialize()
     {
         base.Initialize();
@@ -23,6 +22,12 @@ public sealed class GhostThemeSystem: EntitySystem
         {
             return;
         }
+
+        Apply(uid, ghostThemePrototype);
+    }
+
+    public void Apply(EntityUid uid, GhostThemePrototype ghostThemePrototype)
+    {
         foreach (var entry in ghostThemePrototype.Components.Values)
         {
             if (entry.Component is SpriteComponent spriteComponent && EntityManager.TryGetComponent<SpriteComponent>(uid, out var targetsprite))

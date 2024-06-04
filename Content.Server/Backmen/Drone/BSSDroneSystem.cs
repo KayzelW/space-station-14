@@ -1,7 +1,6 @@
 using Content.Shared.Backmen.Drone.Actions;
 using Content.Server.Body.Systems;
 using Content.Server.Chat.Systems;
-using Content.Server.Drone.Components;
 using Content.Server.Ghost.Roles.Components;
 using Content.Server.Hands.Systems;
 using Content.Server.Popups;
@@ -9,19 +8,16 @@ using Content.Server.Radio.Components;
 using Content.Server.Radio.EntitySystems;
 using Content.Server.Tools.Innate;
 using Content.Shared.Actions;
+using Content.Shared.Backmen.Drone;
 using Content.Shared.Body.Components;
-using Content.Shared.Drone;
 using Content.Shared.Emoting;
 using Content.Shared.Examine;
 using Content.Shared.Mind.Components;
 using Content.Shared.Mobs;
-using Content.Shared.Mobs.Systems;
 using Content.Shared.Popups;
 using Content.Shared.Radio;
-using Content.Shared.Tag;
 using Content.Shared.Throwing;
 using Robust.Shared.Prototypes;
-using Robust.Shared.Timing;
 
 namespace Content.Server.Backmen.Drone;
 
@@ -29,14 +25,9 @@ public sealed class BSSDroneSystem : SharedDroneSystem
 {
     [Dependency] private readonly BodySystem _bodySystem = default!;
     [Dependency] private readonly PopupSystem _popupSystem = default!;
-    [Dependency] private readonly TagSystem _tagSystem = default!;
-    [Dependency] private readonly EntityLookupSystem _lookup = default!;
-    [Dependency] private readonly IGameTiming _gameTiming = default!;
     [Dependency] private readonly InnateToolSystem _innateToolSystem = default!;
-    [Dependency] private readonly MobStateSystem _mobStateSystem = default!;
     [Dependency] private readonly SharedAppearanceSystem _appearance = default!;
     [Dependency] private readonly SharedActionsSystem _action = default!;
-    [Dependency] private readonly IPrototypeManager _prototypes = default!;
     [Dependency] private readonly HandsSystem _handsSystem = default!;
     [Dependency] private readonly RadioSystem _radioSystem = default!;
 
@@ -47,7 +38,7 @@ public sealed class BSSDroneSystem : SharedDroneSystem
     public override void Initialize()
     {
         base.Initialize();
-        SubscribeLocalEvent<BSSDroneComponent, MobStateChangedEvent>(OnMobStateChanged);
+        //SubscribeLocalEvent<BSSDroneComponent, MobStateChangedEvent>(OnMobStateChanged);
         SubscribeLocalEvent<BSSDroneComponent, ExaminedEvent>(OnExamined);
         SubscribeLocalEvent<BSSDroneComponent, MindAddedMessage>(OnMindAdded);
         SubscribeLocalEvent<BSSDroneComponent, MindRemovedMessage>(OnMindRemoved);
@@ -60,7 +51,7 @@ public sealed class BSSDroneSystem : SharedDroneSystem
         SubscribeLocalEvent<BSSDroneComponent, ointmentCraftActionEvent>(OnCraftOintment);
         SubscribeLocalEvent<BSSDroneComponent, brutepackCraftActionEvent>(OnCraftBrutepack);
 
-        SubscribeLocalEvent<DroneComponent, EntitySpokeEvent>((uid, _, args) => OnDroneSpeak(uid, args), before: new []{ typeof(RadioSystem) });
+        //SubscribeLocalEvent<DroneComponent, EntitySpokeEvent>((uid, _, args) => OnDroneSpeak(uid, args), before: new []{ typeof(RadioSystem) });
         SubscribeLocalEvent<BSSDroneComponent, EntitySpokeEvent>((uid, _, args) => OnDroneSpeak(uid, args), before: new []{ typeof(RadioSystem) });
     }
 
@@ -91,7 +82,7 @@ public sealed class BSSDroneSystem : SharedDroneSystem
             args.PushMarkup(Loc.GetString("drone-dormant"));
         }
     }
-
+/*
     private void OnMobStateChanged(EntityUid uid, BSSDroneComponent drone, MobStateChangedEvent args)
     {
         if (args.NewMobState == MobState.Dead)
@@ -103,7 +94,7 @@ public sealed class BSSDroneSystem : SharedDroneSystem
                 _bodySystem.GibBody(uid, body: body);
             QueueDel(uid);
         }
-    }
+    }*/
 
     private void OnMindAdded(EntityUid uid, BSSDroneComponent drone, MindAddedMessage args)
     {

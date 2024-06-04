@@ -8,19 +8,29 @@
     - Genetic
 
 - type: damageContainer
-  id: Blob
-  supportedGroups:
-    - Brute
-    - Burn
-
-- type: damageContainer
   id: Inorganic
   supportedGroups:
     - Brute
   supportedTypes:
     - Heat
     - Shock
-    - Structural # this probably should be in separate container
+
+- type: damageContainer
+  id: StructuralInorganic
+  supportedGroups:
+  - Brute
+  supportedTypes:
+  - Heat
+  - Shock
+  - Structural
+
+- type: damageContainer
+  id: Silicon
+  supportedGroups:
+    - Brute
+  supportedTypes:
+    - Heat
+    - Shock
 
 - type: damageContainer
   id: Shield
@@ -37,3 +47,8 @@
     - Toxin
   supportedTypes:
     - Shock
+
+- type: damageContainer
+  id: ShadowHaze
+  supportedTypes:
+    - Heat

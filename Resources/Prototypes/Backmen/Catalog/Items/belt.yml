@@ -1,8 +1,0 @@
-- type: entity
-  id: ClothingBeltSheathFilledOrd
-  parent: ClothingBeltOrden
-  suffix: Filled
-  components:
-  - type: StorageFill
-    contents:
-      - id: OrdenSabre

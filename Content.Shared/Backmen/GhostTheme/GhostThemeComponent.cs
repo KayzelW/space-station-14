@@ -1,14 +1,12 @@
-﻿using Content.Shared.Backmen.GhostTheme;
-using Robust.Shared.GameStates;
-using Robust.Shared.Serialization.TypeSerializers.Implementations.Custom.Prototype;
+﻿using Robust.Shared.GameStates;
+using Robust.Shared.Prototypes;
+using Robust.Shared.Serialization;
 
 namespace Content.Shared.Backmen.GhostTheme;
 
 [RegisterComponent, NetworkedComponent, AutoGenerateComponentState(true)]
-
 public sealed partial class GhostThemeComponent: Component
 {
-    [ViewVariables(VVAccess.ReadWrite), AutoNetworkedField,
-     DataField("ghostTheme")]
-    public string? GhostTheme;
+    [ViewVariables(VVAccess.ReadWrite), AutoNetworkedField, DataField("ghostTheme")]
+    public ProtoId<GhostThemePrototype>? GhostTheme;
 }

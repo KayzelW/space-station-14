@@ -1,10 +1,8 @@
 using Robust.Shared.Audio;
-using Robust.Server.GameObjects;
 using Robust.Shared.Player;
 using Robust.Shared.Prototypes;
 using Content.Server.Body.Components;
 using Content.Server.Body.Systems;
-using Content.Server.Chemistry.EntitySystems;
 using Content.Server.DoAfter;
 using Content.Shared.Actions;
 using Content.Shared.Backmen.Abilities.Psionics;
@@ -13,9 +11,8 @@ using Content.Shared.DoAfter;
 using Content.Shared.FixedPoint;
 using Content.Shared.Popups;
 using Content.Shared.Backmen.Psionics.Events;
-using Content.Shared.Chemistry.EntitySystems;
-using Content.Shared.Tag;
 using Content.Shared.Examine;
+using Robust.Server.Audio;
 using static Content.Shared.Examine.ExamineSystemShared;
 using Robust.Shared.Timing;
 
@@ -23,15 +20,14 @@ namespace Content.Server.Backmen.Abilities.Psionics;
 
 public sealed class PsionicRegenerationPowerSystem : EntitySystem
 {
-    [Dependency] private readonly IPrototypeManager _prototypeManager = default!;
     [Dependency] private readonly SharedActionsSystem _actions = default!;
     [Dependency] private readonly BloodstreamSystem _bloodstreamSystem = default!;
     [Dependency] private readonly AudioSystem _audioSystem = default!;
-    [Dependency] private readonly TagSystem _tagSystem = default!;
     [Dependency] private readonly DoAfterSystem _doAfterSystem = default!;
     [Dependency] private readonly SharedPopupSystem _popupSystem = default!;
     [Dependency] private readonly SharedPsionicAbilitiesSystem _psionics = default!;
     [Dependency] private readonly IGameTiming _gameTiming = default!;
+    [Dependency] private readonly ExamineSystemShared _examine = default!;
 
 
     public override void Initialize()
@@ -71,11 +67,11 @@ public sealed class PsionicRegenerationPowerSystem : EntitySystem
         _popupSystem.PopupEntity(Loc.GetString("psionic-regeneration-begin", ("entity", uid)),
             uid,
             // TODO: Use LoS-based Filter when one is available.
-            Filter.Pvs(uid).RemoveWhereAttachedEntity(entity => !ExamineSystemShared.InRangeUnOccluded(uid, entity, ExamineRange, null)),
+            Filter.Pvs(uid).RemoveWhereAttachedEntity(entity => !_examine.InRangeUnOccluded(uid, entity, ExamineRange, null)),
             true,
             PopupType.Medium);
 
-        _audioSystem.PlayPvs(component.SoundUse, component.Owner, AudioParams.Default.WithVolume(8f).WithMaxDistance(1.5f).WithRolloffFactor(3.5f));
+        _audioSystem.PlayPvs(component.SoundUse, uid, AudioParams.Default.WithVolume(8f).WithMaxDistance(1.5f).WithRolloffFactor(3.5f));
         _psionics.LogPowerUsed(uid, "psionic regeneration");
         args.Handled = true;
     }

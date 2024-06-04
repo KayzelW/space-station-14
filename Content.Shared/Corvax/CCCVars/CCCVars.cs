@@ -9,6 +9,12 @@ namespace Content.Shared.Corvax.CCCVars;
 // ReSharper disable once InconsistentNaming
 public sealed class CCCVars
 {
+    /// <summary>
+    /// Deny any VPN connections.
+    /// </summary>
+    public static readonly CVarDef<bool> PanicBunkerDenyVPN =
+        CVarDef.Create("game.panic_bunker.deny_vpn", false, CVar.SERVERONLY);
+
     /**
      * TTS (Text-To-Speech)
      */
@@ -17,7 +23,7 @@ public sealed class CCCVars
     /// URL of the TTS server API.
     /// </summary>
     public static readonly CVarDef<bool> TTSEnabled =
-        CVarDef.Create("tts.enabled", false, CVar.SERVERONLY | CVar.ARCHIVE);
+        CVarDef.Create("tts.enabled", false, CVar.SERVER | CVar.REPLICATED | CVar.ARCHIVE);
 
     /// <summary>
     /// URL of the TTS server API.

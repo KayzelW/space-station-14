@@ -36,3 +36,9 @@ roles-antag-flesh-cultist-leader-objective = Manifest the cult's goals in realit
 
 roles-antag-space-ninja-name = Space Ninja
 roles-antag-space-ninja-objective = Use your stealth to sabotage the station, nom on electrical wires.
+
+roles-antag-thief-name = Thief
+roles-antag-thief-objective = Add some NT property to your personal collection without using violence.
+
+roles-antag-dragon-name = Space Dragon
+roles-antag-dragon-objective = Create a carp army to take over this quadrant.

@@ -6,17 +6,17 @@ using Content.Shared.Stunnable;
 using Content.Shared.Stealth;
 using Content.Shared.Stealth.Components;
 using Content.Shared.Backmen.Abilities.Psionics;
+using Content.Shared.Backmen.Psionics;
 using Content.Shared.Backmen.Psionics.Events;
 using Robust.Shared.Prototypes;
-using Robust.Shared.Player;
-using Robust.Shared.Audio;
+using Robust.Shared.Audio.Systems;
 using Robust.Shared.Timing;
 
 namespace Content.Server.Backmen.Abilities.Psionics;
 
 public sealed class PsionicInvisibilityPowerSystem : EntitySystem
 {
-    [Dependency] private readonly IPrototypeManager _prototypeManager = default!;
+    [Dependency] private readonly SharedAudioSystem _audio = default!;
     [Dependency] private readonly SharedActionsSystem _actions = default!;
     [Dependency] private readonly SharedStunSystem _stunSystem = default!;
     [Dependency] private readonly SharedPsionicAbilitiesSystem _psionics = default!;
@@ -35,12 +35,9 @@ public sealed class PsionicInvisibilityPowerSystem : EntitySystem
         SubscribeLocalEvent<PsionicInvisibilityUsedComponent, DamageChangedEvent>(OnDamageChanged);
     }
 
-    [ValidatePrototypeId<EntityPrototype>] private const string ActionPsionicInvisibility = "ActionPsionicInvisibility";
-    [ValidatePrototypeId<EntityPrototype>] private const string ActionPsionicInvisibilityOff = "ActionPsionicInvisibilityOff";
-
     private void OnInit(EntityUid uid, PsionicInvisibilityPowerComponent component, ComponentInit args)
     {
-        _actions.AddAction(uid, ref component.PsionicInvisibilityPowerAction, ActionPsionicInvisibility);
+        _actions.AddAction(uid, ref component.PsionicInvisibilityPowerAction, component.ActionPsionicInvisibility);
 
         if (_actions.TryGetActionData(component.PsionicInvisibilityPowerAction, out var action) && action?.UseDelay != null)
             _actions.SetCooldown(component.PsionicInvisibilityPowerAction, _gameTiming.CurTime,
@@ -62,7 +59,7 @@ public sealed class PsionicInvisibilityPowerSystem : EntitySystem
 
         ToggleInvisibility(args.Performer);
 
-        _actions.AddAction(uid, ref component.PsionicInvisibilityPowerActionOff, ActionPsionicInvisibilityOff);
+        _actions.AddAction(uid, ref component.PsionicInvisibilityPowerActionOff, component.ActionPsionicInvisibilityOff);
 
         _psionics.LogPowerUsed(uid, "psionic invisibility");
         args.Handled = true;
@@ -79,11 +76,12 @@ public sealed class PsionicInvisibilityPowerSystem : EntitySystem
 
     private void OnStart(EntityUid uid, PsionicInvisibilityUsedComponent component, ComponentInit args)
     {
+        component.Pacify = HasComp<PacifiedComponent>(uid);
         EnsureComp<PsionicallyInvisibleComponent>(uid);
         EnsureComp<PacifiedComponent>(uid);
         var stealth = EnsureComp<StealthComponent>(uid);
         _stealth.SetVisibility(uid, 0.66f, stealth);
-        SoundSystem.Play("/Audio/Effects/toss.ogg", Filter.Pvs(uid), uid);
+        _audio.PlayPvs("/Audio/Effects/toss.ogg", uid);
 
     }
 
@@ -93,16 +91,17 @@ public sealed class PsionicInvisibilityPowerSystem : EntitySystem
             return;
 
         RemComp<PsionicallyInvisibleComponent>(uid);
-        RemComp<PacifiedComponent>(uid);
+        if(!component.Pacify)
+            RemComp<PacifiedComponent>(uid);
         RemComp<StealthComponent>(uid);
-        SoundSystem.Play("/Audio/Effects/toss.ogg", Filter.Pvs(uid), uid);
+        _audio.PlayPvs("/Audio/Effects/toss.ogg", uid);
 
         if (TryComp<PsionicInvisibilityPowerComponent>(uid, out var invisibilityPowerComponent))
         {
             _actions.RemoveAction(uid, invisibilityPowerComponent.PsionicInvisibilityPowerActionOff);
         }
 
-        _stunSystem.TryParalyze(uid, TimeSpan.FromSeconds(8), false);
+        _stunSystem.TryParalyze(uid, TimeSpan.FromSeconds(invisibilityPowerComponent?.StunSecond ?? 8), false);
         DirtyEntity(uid);
     }
 
@@ -119,7 +118,8 @@ public sealed class PsionicInvisibilityPowerSystem : EntitySystem
         if (!HasComp<PsionicInvisibilityUsedComponent>(uid))
         {
             EnsureComp<PsionicInvisibilityUsedComponent>(uid);
-        } else
+        }
+        else
         {
             RemComp<PsionicInvisibilityUsedComponent>(uid);
         }

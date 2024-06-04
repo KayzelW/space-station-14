@@ -23,12 +23,17 @@ public sealed class SponsorInfo
     public int ExtraSlots { get; set; }
 
     [JsonPropertyName("allowedMarkings")] // TODO: Rename API field in separate PR as breaking change!
-    public string[] AllowedMarkings { get; set; } = Array.Empty<string>();
+    public string[] AllowedMarkings { get; set; } = [];
+
+    [JsonPropertyName("loadouts")]
+    public string[] Loadouts { get; set; } = [];
+
+    [JsonPropertyName("openAllRoles")]
+    public bool OpenAllRoles { get; set; } = false;
 
     [JsonPropertyName("ghostTheme")]
     public string? GhostTheme { get; set; }
 }
-
 
 /// <summary>
 /// Server sends sponsoring info to client on connect only if user is sponsor
@@ -47,8 +52,11 @@ public sealed class MsgSponsorInfo : NetMessage
             return;
 
         var length = buffer.ReadVariableInt32();
-        using var stream = buffer.ReadAlignedMemory(length);
-        serializer.DeserializeDirect(stream, out Info);
+        using var stream = new MemoryStream();
+        {
+            buffer.ReadAlignedMemory(stream, length);
+            serializer.DeserializeDirect(stream, out Info);
+        }
     }
 
     public override void WriteToBuffer(NetOutgoingMessage buffer, IRobustSerializer serializer)

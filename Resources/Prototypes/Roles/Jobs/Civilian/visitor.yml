@@ -1,0 +1,17 @@
+- type: job
+  id: Visitor
+  name: job-name-visitor
+  description: job-description-visitor
+  playTimeTracker: JobVisitor
+  canBeAntag: false
+  icon: JobIconVisitor
+  setPreference: false
+  overrideConsoleVisibility: true
+  #start-backmen: currency
+  minBankBalance: 400
+  maxBankBalance: 500
+  wageDepartment: Civilian
+  wage: 10
+  #end-backmen: currency
+#  access: # Corvax-MRP
+#  - Maintenance

@@ -4,8 +4,11 @@ using Content.Shared.Mobs;
 using Content.Shared.Mobs.Components;
 using Content.Shared.Mobs.Systems;
 using Content.Shared.FixedPoint;
+using Content.Shared.Interaction;
+using Content.Shared.Physics;
 using Robust.Client.GameObjects;
 using Robust.Client.Graphics;
+using Robust.Client.Player;
 using Robust.Shared.Enums;
 using Robust.Shared.Prototypes;
 using Robust.Shared.Utility;
@@ -16,45 +19,57 @@ namespace Content.Client.Backmen.EntityHealthBar;
 /// Yeah a lot of this is duplicated from doafters.
 /// Not much to be done until there's a generic HUD system
 /// </summary>
-public sealed class EntityHealthBarOverlay : Overlay
+public sealed class BkmEntityHealthBarOverlay : Overlay
 {
-    private readonly IEntityManager _entManager;
+    [Dependency]
+    private readonly IEntityManager _entManager = default!;
+    [Dependency]
+    private readonly IPrototypeManager _protoManager = default!;
+
     private readonly SharedTransformSystem _transform;
     private readonly MobStateSystem _mobStateSystem;
     private readonly MobThresholdSystem _mobThresholdSystem;
-    private readonly Texture _barTexture;
     private readonly ShaderInstance _shader;
+    private readonly SharedInteractionSystem _interaction;
+
+    [Dependency]
+    private readonly IPlayerManager _playerManager = default!;
     public override OverlaySpace Space => OverlaySpace.WorldSpaceBelowFOV;
     public List<string> DamageContainers = new();
 
-    public EntityHealthBarOverlay(IEntityManager entManager, IPrototypeManager protoManager)
+    public BkmEntityHealthBarOverlay()
     {
-        _entManager = entManager;
-        _transform = _entManager.EntitySysManager.GetEntitySystem<SharedTransformSystem>();
-        _mobStateSystem = _entManager.EntitySysManager.GetEntitySystem<MobStateSystem>();
-        _mobThresholdSystem = _entManager.EntitySysManager.GetEntitySystem<MobThresholdSystem>();
+        IoCManager.InjectDependencies(this);
 
-        var sprite = new SpriteSpecifier.Rsi(new ("/Textures/Interface/Misc/health_bar.rsi"), "icon");
-        _barTexture = _entManager.EntitySysManager.GetEntitySystem<SpriteSystem>().Frame0(sprite);
+        _transform = _entManager.System<SharedTransformSystem>();
+        _mobStateSystem = _entManager.System<MobStateSystem>();
+        _mobThresholdSystem = _entManager.System<MobThresholdSystem>();
+        _interaction = _entManager.System<SharedInteractionSystem>();
 
-        _shader = protoManager.Index<ShaderPrototype>("unshaded").Instance();
+        _shader = _protoManager.Index<ShaderPrototype>("unshaded").Instance();
     }
 
     protected override void Draw(in OverlayDrawArgs args)
     {
+        if (_playerManager.LocalEntity == null)
+        {
+            return;
+        }
+
         var handle = args.WorldHandle;
         var rotation = args.Viewport.Eye?.Rotation ?? Angle.Zero;
         var spriteQuery = _entManager.GetEntityQuery<SpriteComponent>();
         var xformQuery = _entManager.GetEntityQuery<TransformComponent>();
 
         const float scale = 1f;
-        var scaleMatrix = Matrix3.CreateScale(new Vector2(scale, scale));
-        var rotationMatrix = Matrix3.CreateRotation(-rotation);
+        var scaleMatrix = Matrix3x2.CreateScale(new Vector2(scale, scale));
+        var rotationMatrix = Matrix3x2.CreateRotation(-((float)rotation.Theta));
         handle.UseShader(_shader);
 
-        foreach (var (thresholds, mob, dmg) in _entManager.EntityQuery<MobThresholdsComponent, MobStateComponent, DamageableComponent>(true))
+        var q = _entManager.AllEntityQueryEnumerator<MobThresholdsComponent, MobStateComponent, DamageableComponent>();
+        while (q.MoveNext(out var owner, out var thresholds, out var mob, out var dmg))
         {
-            if (!xformQuery.TryGetComponent(mob.Owner, out var xform) ||
+            if (!xformQuery.TryGetComponent(owner, out var xform) ||
                 xform.MapID != args.MapId)
             {
                 continue;
@@ -63,36 +78,36 @@ public sealed class EntityHealthBarOverlay : Overlay
             if (dmg.DamageContainerID == null || !DamageContainers.Contains(dmg.DamageContainerID))
                 continue;
 
-            var worldPosition = _transform.GetWorldPosition(xform);
-            var worldMatrix = Matrix3.CreateTranslation(worldPosition);
+            if (!_interaction.InRangeUnobstructed(_playerManager.LocalEntity.Value, owner, range: 30f, collisionMask: CollisionGroup.Opaque))
+                continue;
 
-            Matrix3.Multiply(scaleMatrix, worldMatrix, out var scaledWorld);
-            Matrix3.Multiply(rotationMatrix, scaledWorld, out var matty);
+
+            var worldPosition = _transform.GetWorldPosition(xform);
+            var worldMatrix = Matrix3x2.CreateTranslation(worldPosition);
+
+            var scaledWorld = Matrix3x2.Multiply(scaleMatrix, worldMatrix);
+            var matty = Matrix3x2.Multiply(rotationMatrix, scaledWorld);
 
             handle.SetTransform(matty);
 
-            float yOffset;
-            if (spriteQuery.TryGetComponent(mob.Owner, out var sprite))
-            {
-                yOffset = sprite.Bounds.Height + 15f;
-            }
-            else
-            {
-                yOffset = 1f;
-            }
+            var yOffset = spriteQuery.TryGetComponent(owner, out var sprite) ? sprite.Bounds.Height + 19f : 1f;
 
-            var position = new Vector2(-_barTexture.Width / 2f / EyeManager.PixelsPerMeter,
+            var position = new Vector2(-24 / 2f / EyeManager.PixelsPerMeter,
                 yOffset / EyeManager.PixelsPerMeter);
 
             // Draw the underlying bar texture
-            handle.DrawTexture(_barTexture, position);
-
+            //handle.DrawTexture(_barTexture, position);
             // we are all progressing towards death every day
-            (float ratio, bool inCrit) deathProgress = CalcProgress(mob.Owner, mob, dmg, thresholds);
+            (float ratio, bool inCrit) deathProgress = CalcProgress(owner, mob, dmg, thresholds);
+
 
             var color = GetProgressColor(deathProgress.ratio, deathProgress.inCrit);
 
+            handle.DrawCircle(position, 0.1f + 0.03f, Color.Gray, false);
+            DrawProgressCircle(handle, position, 0.1f, color, deathProgress.ratio);
+
             // Hardcoded width of the progress bar because it doesn't match the texture.
+            /*
             const float startX = 2f;
             const float endX = 22f;
 
@@ -101,10 +116,44 @@ public sealed class EntityHealthBarOverlay : Overlay
             var box = new Box2(new Vector2(startX, 3f) / EyeManager.PixelsPerMeter, new Vector2(xProgress, 4f) / EyeManager.PixelsPerMeter);
             box = box.Translated(position);
             handle.DrawRect(box, color);
+            */
         }
 
         handle.UseShader(null);
-        handle.SetTransform(Matrix3.Identity);
+        handle.SetTransform(Matrix3x2.Identity);
+    }
+
+    private static void DrawProgressCircle(DrawingHandleWorld handleWorld, Vector2 position, float radius, Color color, float progress)
+    {
+        const int segments = 64;
+
+
+        if (progress >= 1)
+        {
+            handleWorld.DrawCircle(position, radius, color);
+            return;
+        }
+
+        // Вычисление количества вершин для заполненной части
+        var filledVerticesCount = (int)Math.Ceiling(segments * progress);
+        if (filledVerticesCount is <= 0 or >= segments)
+            return;
+
+        var filledBuffer = new Vector2[filledVerticesCount + 1];
+
+        filledBuffer[0] = position; // Центральная вершина
+
+        for (var i = 1; i <= filledVerticesCount; i++)
+        {
+            var angle = i / (float) segments * MathHelper.TwoPi;
+            var pos = new Vector2(MathF.Sin(angle), MathF.Cos(angle));
+
+            filledBuffer[i] = position + pos * radius;
+        }
+
+        // Рисование заполненной части
+        handleWorld.DrawPrimitives(DrawPrimitiveTopology.TriangleFan, filledBuffer, color);
+
     }
 
     /// <summary>
@@ -150,7 +199,8 @@ public sealed class EntityHealthBarOverlay : Overlay
         {
             var hue = (5f / 18f) * progress;
             return Color.FromHsv((hue, 1f, 0.75f, 1f));
-        } else
+        }
+        else
         {
             return Color.Red;
         }

@@ -9,7 +9,6 @@ public sealed class ClothingGrantingSystem : EntitySystem
 {
     [Dependency] private readonly IComponentFactory _componentFactory = default!;
     [Dependency] private readonly ISerializationManager _serializationManager = default!;
-    [Dependency] private readonly TagSystem _tagSystem = default!;
 
     public override void Initialize()
     {
@@ -20,9 +19,11 @@ public sealed class ClothingGrantingSystem : EntitySystem
 
     private void OnCompEquip(EntityUid uid, ClothingGrantComponent component, GotEquippedEvent args)
     {
-        if (!TryComp<ClothingComponent>(uid, out var clothing)) return;
+        if (!TryComp<ClothingComponent>(uid, out var clothing))
+            return;
 
-        if (!clothing.Slots.HasFlag(args.SlotFlags)) return;
+        if (!clothing.Slots.HasFlag(args.SlotFlags))
+            return;
 
         if (component.Components.Count > 1)
         {

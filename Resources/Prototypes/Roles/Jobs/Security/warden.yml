@@ -13,12 +13,13 @@
   canBeAntag: false
   access:
   - Security
+  - Brig
   - Armory
   - Maintenance
   - Service
-  - Brig
   - External
   - Detective
+  - Cryogenics
   #start-backmen: currency
   minBankBalance: 150
   maxBankBalance: 250
@@ -32,16 +33,6 @@
 - type: startingGear
   id: WardenGear
   equipment:
-    head: ClothingHeadHatWarden
-    jumpsuit: ClothingUniformJumpsuitWarden
-    back: ClothingBackpackSecurityFilled
-    shoes: ClothingShoesBootsJackSecFilled # Corvax-Resprite
     eyes: ClothingEyesGlassesSecurity
-    outerClothing: ClothingOuterCoatWarden
     id: WardenPDA
     ears: ClothingHeadsetSecurity
-    belt: ClothingBeltSecurityFilled
-    pocket1: WeaponPistolMk58Nonlethal
-  innerClothingSkirt: ClothingUniformJumpskirtWarden
-  satchel: ClothingBackpackSatchelSecurityFilled
-  duffelbag: ClothingBackpackDuffelSecurityFilled

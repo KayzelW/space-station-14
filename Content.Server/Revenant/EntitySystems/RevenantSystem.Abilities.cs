@@ -2,7 +2,6 @@ using Content.Shared.Popups;
 using Content.Shared.Damage;
 using Content.Shared.Revenant;
 using Robust.Shared.Random;
-using Robust.Shared.Map;
 using Content.Shared.Tag;
 using Content.Server.Storage.Components;
 using Content.Server.Light.Components;
@@ -15,24 +14,26 @@ using Content.Shared.Item;
 using Content.Shared.Bed.Sleep;
 using System.Linq;
 using System.Numerics;
-using Content.Server.Maps;
 using Content.Server.Revenant.Components;
+using Content.Shared.Physics;
 using Content.Shared.DoAfter;
 using Content.Shared.Emag.Systems;
 using Content.Shared.FixedPoint;
 using Content.Shared.Humanoid;
+using Content.Shared.Maps;
 using Content.Shared.Mobs;
 using Content.Shared.Mobs.Components;
 using Content.Shared.Mobs.Systems;
 using Content.Shared.Revenant.Components;
 using Robust.Shared.Physics.Components;
 using Robust.Shared.Utility;
+using Robust.Shared.Map.Components;
+using Content.Shared.Whitelist;
 
 namespace Content.Server.Revenant.EntitySystems;
 
 public sealed partial class RevenantSystem
 {
-    [Dependency] private readonly IMapManager _mapManager = default!;
     [Dependency] private readonly ThrowingSystem _throwing = default!;
     [Dependency] private readonly EntityStorageSystem _entityStorage = default!;
     [Dependency] private readonly EmagSystem _emag = default!;
@@ -40,10 +41,11 @@ public sealed partial class RevenantSystem
     [Dependency] private readonly MobThresholdSystem _mobThresholdSystem = default!;
     [Dependency] private readonly GhostSystem _ghost = default!;
     [Dependency] private readonly TileSystem _tile = default!;
+    [Dependency] private readonly EntityWhitelistSystem _whitelistSystem = default!;
 
     private void InitializeAbilities()
     {
-        SubscribeLocalEvent<RevenantComponent, InteractNoHandEvent>(OnInteract);
+        SubscribeLocalEvent<RevenantComponent, UserActivateInWorldEvent>(OnInteract);
         SubscribeLocalEvent<RevenantComponent, SoulEvent>(OnSoulSearch);
         SubscribeLocalEvent<RevenantComponent, HarvestEvent>(OnHarvest);
 
@@ -53,11 +55,14 @@ public sealed partial class RevenantSystem
         SubscribeLocalEvent<RevenantComponent, RevenantMalfunctionActionEvent>(OnMalfunctionAction);
     }
 
-    private void OnInteract(EntityUid uid, RevenantComponent component, InteractNoHandEvent args)
+    private void OnInteract(EntityUid uid, RevenantComponent component, UserActivateInWorldEvent args)
     {
-        if (args.Target == args.User || args.Target == null)
+        if (args.Handled)
             return;
-        var target = args.Target.Value;
+
+        if (args.Target == args.User)
+            return;
+        var target = args.Target;
 
         if (HasComp<PoweredLightComponent>(target))
         {
@@ -78,13 +83,15 @@ public sealed partial class RevenantSystem
         {
             BeginHarvestDoAfter(uid, target, component, essence);
         }
+
+        args.Handled = true;
     }
 
     private void BeginSoulSearchDoAfter(EntityUid uid, EntityUid target, RevenantComponent revenant)
     {
         var searchDoAfter = new DoAfterArgs(EntityManager, uid, revenant.SoulSearchDuration, new SoulEvent(), uid, target: target)
         {
-            BreakOnUserMove = true,
+            BreakOnMove = true,
             BreakOnDamage = true,
             DistanceThreshold = 2
         };
@@ -136,10 +143,16 @@ public sealed partial class RevenantSystem
             return;
         }
 
+        if(_physics.GetEntitiesIntersectingBody(uid, (int) CollisionGroup.Impassable).Count > 0)
+        {
+            _popup.PopupEntity(Loc.GetString("revenant-in-solid"), uid, uid);
+            return;
+        }
+
         var doAfter = new DoAfterArgs(EntityManager, uid, revenant.HarvestDebuffs.X, new HarvestEvent(), uid, target: target)
         {
             DistanceThreshold = 2,
-            BreakOnUserMove = true,
+            BreakOnMove = true,
             BreakOnDamage = true,
             RequireCanInteract = false, // stuns itself
         };
@@ -212,7 +225,7 @@ public sealed partial class RevenantSystem
         //var coords = Transform(uid).Coordinates;
         //var gridId = coords.GetGridUid(EntityManager);
         var xform = Transform(uid);
-        if (!_mapManager.TryGetGrid(xform.GridUid, out var map))
+        if (!TryComp<MapGridComponent>(xform.GridUid, out var map))
             return;
         var tiles = map.GetTilesIntersecting(Box2.CenteredAround(xform.WorldPosition,
             new Vector2(component.DefileRadius * 2, component.DefileRadius))).ToArray();
@@ -235,11 +248,11 @@ public sealed partial class RevenantSystem
         foreach (var ent in lookup)
         {
             //break windows
-            if (tags.HasComponent(ent) && _tag.HasAnyTag(ent, "Window"))
+            if (tags.HasComponent(ent) && _tag.HasTag(ent, "Window"))
             {
                 //hardcoded damage specifiers til i die.
                 var dspec = new DamageSpecifier();
-                dspec.DamageDict.Add("Structural", 15);
+                dspec.DamageDict.Add("Structural", 60);
                 _damage.TryChangeDamage(ent, dspec, origin: uid);
             }
 
@@ -306,6 +319,16 @@ public sealed partial class RevenantSystem
 
         args.Handled = true;
         // TODO: When disease refactor is in.
+
+        // backmen-start: Disease
+        var emo = GetEntityQuery<Shared.Backmen.Disease.DiseaseCarrierComponent>();
+        foreach (var ent in _lookup.GetEntitiesInRange(uid, component.BlightRadius))
+        {
+            if (emo.TryGetComponent(ent, out var comp))
+                EntityManager.System<Backmen.Disease.DiseaseSystem>().TryAddDisease(ent, component.BlightDiseasePrototypeId, comp);
+        }
+        EntityManager.System<Shared.Backmen.Abilities.Psionics.SharedPsionicAbilitiesSystem>().LogPowerUsed(uid, Loc.GetString("revenant-psionic-power"), 6, 10);
+        // backmen-end: Disease
     }
 
     private void OnMalfunctionAction(EntityUid uid, RevenantComponent component, RevenantMalfunctionActionEvent args)
@@ -320,6 +343,10 @@ public sealed partial class RevenantSystem
 
         foreach (var ent in _lookup.GetEntitiesInRange(uid, component.MalfunctionRadius))
         {
+            if (_whitelistSystem.IsWhitelistFail(component.MalfunctionWhitelist, ent) ||
+                _whitelistSystem.IsBlacklistPass(component.MalfunctionBlacklist, ent))
+                continue;
+
             _emag.DoEmagEffect(uid, ent); //it does not emag itself. adorable.
         }
     }

@@ -1,10 +1,11 @@
 ﻿using Content.Server.Backmen.GameTicking.Rules.Components;
 using Content.Server.Backmen.Objectives;
 using Content.Server.Chat.Managers;
+using Content.Server.GameTicking.Components;
 using Content.Server.GameTicking.Rules.Components;
 using Content.Server.Mind;
 using Content.Shared.Objectives.Components;
-using Robust.Shared.Players;
+using Robust.Shared.Player;
 
 namespace Content.Server.Backmen.Flesh;
 
@@ -25,13 +26,8 @@ public sealed class FleshCultistObjectiveSystem : EntitySystem
         SubscribeLocalEvent<FleshCultistRoleComponent,MapInitEvent>(OnAssigned);
     }
 
-    private void OnAssigned(EntityUid uid, FleshCultistRoleComponent component, MapInitEvent args)
+    private void OnAssigned(EntityUid mindId, FleshCultistRoleComponent component, MapInitEvent args)
     {
-        if (!_mindSystem.TryGetMind(uid, out var mindId, out var mind))
-        {
-            return;
-        }
-
         if (!_mindSystem.TryGetSession(mindId, out var session))
         {
             return;
@@ -79,7 +75,7 @@ public sealed class FleshCultistObjectiveSystem : EntitySystem
 
         foreach (var fleshHeartComp in EntityQuery<FleshHeartComponent>())
         {
-            Logger.Info("Find flesh heart");
+            Log.Info("Find flesh heart");
             if (!component.IsFleshHeartFinale(fleshHeartComp))
                 continue;
             fleshHeartFinale = true;

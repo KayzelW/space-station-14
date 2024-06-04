@@ -1,10 +1,10 @@
-﻿using System.Linq;
+﻿using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using Content.Server.Power.Components;
 using Content.Server.Power.EntitySystems;
 using Content.Server.Stack;
 using Content.Server.Store.Components;
 using Content.Server.Store.Systems;
-using Content.Server.UserInterface;
 using Content.Shared.Access.Components;
 using Content.Shared.Backmen.Economy;
 using Content.Shared.Backmen.Economy.ATM;
@@ -15,11 +15,14 @@ using Content.Shared.Materials;
 using Content.Shared.Popups;
 using Content.Shared.Stacks;
 using Content.Shared.Store;
-using Content.Shared.Wires;
+using Content.Shared.Store.Components;
+using Content.Shared.UserInterface;
+using Robust.Server.Audio;
 using Robust.Server.GameObjects;
 using Robust.Shared.Audio;
 using Robust.Shared.Containers;
 using Robust.Shared.Prototypes;
+using Robust.Shared.Utility;
 
 namespace Content.Server.Backmen.Economy.ATM;
 
@@ -36,35 +39,59 @@ namespace Content.Server.Backmen.Economy.ATM;
         [Dependency] private readonly StoreSystem _storeSystem = default!;
         [Dependency] private readonly SharedPopupSystem _popup = default!;
         [Dependency] private readonly UserInterfaceSystem _uiSystem = default!;
-        [Dependency] private readonly SharedInteractionSystem _interactionSystem = default!;
 
         public override void Initialize()
         {
             base.Initialize();
+
+            // update
+            //SubscribeLocalEvent<AtmComponent, ComponentStartup>((Entity<AtmComponent> uid, ref ComponentStartup _) => UpdateComponentUserInterface(uid));
+            SubscribeLocalEvent<AtmComponent, EntInsertedIntoContainerMessage>((Entity<AtmComponent> uid, ref EntInsertedIntoContainerMessage arg) => UpdateComponentUserInterface(uid));
+            SubscribeLocalEvent<AtmComponent, EntRemovedFromContainerMessage>((Entity<AtmComponent> uid, ref EntRemovedFromContainerMessage _) => UpdateComponentUserInterface(uid));
+
+            // change state
             SubscribeLocalEvent<AtmComponent, PowerChangedEvent>(OnPowerChanged);
-            SubscribeLocalEvent<AtmComponent, ComponentStartup>((uid, comp, _) => UpdateComponentUserInterface(uid,comp));
-            SubscribeLocalEvent<AtmComponent, EntInsertedIntoContainerMessage>((uid, comp, _) => UpdateComponentUserInterface(uid,comp));
-            SubscribeLocalEvent<AtmComponent, EntRemovedFromContainerMessage>((uid, comp, _) => UpdateComponentUserInterface(uid,comp));
-            SubscribeLocalEvent<AtmComponent, ATMRequestWithdrawMessage>(OnRequestWithdraw);
-            SubscribeLocalEvent<AtmCurrencyComponent,AfterInteractEvent>(OnAfterInteract, before: new[]{typeof(StoreSystem)});
             SubscribeLocalEvent<AtmComponent, AfterActivatableUIOpenEvent>(OnInteract);
+
+            Subs.BuiEvents<AtmComponent>(ATMUiKey.Key,
+                subs =>
+                {
+                    subs.Event<ATMRequestWithdrawMessage>(OnRequestWithdraw);
+                });
+            SubscribeLocalEvent<AtmCurrencyComponent, AfterInteractEvent>(OnAfterInteract, before: new[]{typeof(StoreSystem)});
         }
 
-        private void OnInteract(EntityUid uid, AtmComponent component, AfterActivatableUIOpenEvent args)
+        private void OnInteract(Entity<AtmComponent> uid, ref AfterActivatableUIOpenEvent args)
         {
             if (!this.IsPowered(uid, EntityManager))
                 return;
 
-            UpdateComponentUserInterface(uid,component);
+            UpdateComponentUserInterface(uid, args.Actor);
         }
 
-        public Dictionary<string, FixedPoint2> GetCurrencyValue(EntityUid uid, PhysicalCompositionComponent component)
+        [ValidatePrototypeId<MaterialPrototype>]
+        private const string Credit = "Credit";
+
+        [ValidatePrototypeId<CurrencyPrototype>]
+        private const string SpaceCash = "SpaceCash";
+        public Dictionary<ProtoId<CurrencyPrototype>, FixedPoint2> GetCurrencyValue(EntityUid uid, PhysicalCompositionComponent component)
+        {
+            var amount = EntityManager.GetComponentOrNull<StackComponent>(uid)?.Count ?? 1;
+            var rt = new Dictionary<ProtoId<CurrencyPrototype>, FixedPoint2>();
+            if (component.MaterialComposition.TryGetValue(Credit, out var value))
+            {
+                rt.Add(SpaceCash, value * (FixedPoint2)amount);
+            }
+            return rt;
+        }
+        [Obsolete]
+        public Dictionary<string, FixedPoint2> GetCurrencyValueOld(EntityUid uid, PhysicalCompositionComponent component)
         {
             var amount = EntityManager.GetComponentOrNull<StackComponent>(uid)?.Count ?? 1;
             var rt = new Dictionary<string, FixedPoint2>();
-            if (component.MaterialComposition.TryGetValue("Credit", out var value))
+            if (component.MaterialComposition.TryGetValue(Credit, out var value))
             {
-                rt.Add("SpaceCash", value * (FixedPoint2)amount);
+                rt.Add(SpaceCash, value * (FixedPoint2)amount);
             }
             return rt;
         }
@@ -74,25 +101,31 @@ namespace Content.Server.Backmen.Economy.ATM;
             if (args.Handled || !args.CanReach)
                 return;
 
-            if (args.Target == null || !TryComp<PhysicalCompositionComponent>(args.Used, out var component) || !TryComp<AtmComponent>(args.Target, out var store))
+            if (args.Target == null || !TryComp<PhysicalCompositionComponent>(args.Used, out var component))
                 return;
 
-            var user = args.User;
-
-            args.Handled = TryAddCurrency(GetCurrencyValue(args.Used, component), args.Target.Value, store);
-
-            if (args.Handled)
+            if (TryComp<AtmComponent>(args.Target, out var atmComponent))
             {
-                var msg = Loc.GetString("store-currency-inserted", ("used", args.Used), ("target", args.Target));
-                _popup.PopupEntity(msg, args.Target.Value);
-                Del(args.Used);
+                args.Handled = TryAddCurrency(GetCurrencyValue(args.Used, component), (args.Target.Value, atmComponent), args.User);
             }
+            else if (TryComp<StoreComponent>(args.Target, out var store))
+            {
+                args.Handled = _storeSystem.TryAddCurrency(GetCurrencyValueOld(args.Used, component), args.Target.Value, store);
+            }
+
+            if (!args.Handled)
+                return;
+
+            var msg = Loc.GetString("store-currency-inserted", ("used", args.Used), ("target", args.Target));
+            _popup.PopupEntity(msg, args.Target.Value);
+            Del(args.Used);
         }
 
         private void OnPowerChanged(EntityUid uid, AtmComponent component, ref PowerChangedEvent args)
         {
             TryUpdateVisualState(uid, component);
         }
+
         public void TryUpdateVisualState(EntityUid uid, AtmComponent? component = null)
         {
             if (!Resolve(uid, ref component))
@@ -110,21 +143,23 @@ namespace Content.Server.Backmen.Economy.ATM;
         }
         public void UpdateUi(EntityUid uid, BankAccountComponent bankAccount)
         {
-            if (!_uiSystem.TryGetUi(uid, ATMUiKey.Key, out var ui))
+            if (!_uiSystem.TryGetOpenUi(uid, ATMUiKey.Key, out var ui))
                 return;
 
             var currencySymbol = "";
             if(_prototypeManager.TryIndex(bankAccount.CurrencyType, out CurrencyPrototype? p))
                 currencySymbol = Loc.GetString(p.CurrencySymbol);
 
-            _uiSystem.SetUiState(ui,new AtmBoundUserInterfaceBalanceState(
+            _uiSystem.SetUiState(ui.Owner,
+                ui.UiKey,
+                new AtmBoundUserInterfaceBalanceState(
                 bankAccount.Balance,
                 currencySymbol
             ));
         }
-        private void UpdateComponentUserInterface(EntityUid uid, AtmComponent? component = null)
+        private void UpdateComponentUserInterface(Entity<AtmComponent> uid, EntityUid? actor = null)
         {
-            if (!Resolve(uid, ref component))
+            if(!_uiSystem.HasUi(uid.Owner, ATMUiKey.Key))
                 return;
 
             string? idCardFullName = null;
@@ -133,28 +168,32 @@ namespace Content.Server.Backmen.Economy.ATM;
             var haveAccessToBankAccount = false;
             FixedPoint2? bankAccountBalance = null;
             var currencySymbol = string.Empty;
-            if (component.IdCardSlot.Item is { Valid: true } idCardEntityUid)
+            if (uid.Comp.IdCardSlot.Item is { Valid: true } idCardEntityUid)
             {
                 if (_entities.TryGetComponent<IdCardComponent>(idCardEntityUid, out var idCardComponent))
                 {
                     idCardFullName = idCardComponent.FullName;
-                    if (_bankManagerSystem.TryGetBankAccount(idCardEntityUid, out var bankAccount))
+                    if (!_bankManagerSystem.TryGetBankAccount(idCardEntityUid, out var bankAccount)) // новая карта (заведение счета в банке)
                     {
-                        haveAccessToBankAccount = true;
-                        bankAccountBalance = bankAccount.Balance;
-                        if(_prototypeManager.TryIndex(bankAccount.CurrencyType, out CurrencyPrototype? p))
-                            currencySymbol = Loc.GetString(p.CurrencySymbol);
+                        bankAccount = _bankManagerSystem.CreateNewBankAccount(idCardEntityUid);
+                        DebugTools.Assert(bankAccount != null);
+                        bankAccount.Value.Comp.AccountName = idCardFullName;
+                        idCardComponent.StoredBankAccountNumber = bankAccount.Value.Comp.AccountNumber;
+                        Dirty(idCardEntityUid, idCardComponent);
+                        Dirty(bankAccount.Value);
                     }
+                    haveAccessToBankAccount = true;
+                    bankAccountBalance = bankAccount.Value.Comp.Balance;
+                    if(_prototypeManager.TryIndex(bankAccount.Value.Comp.CurrencyType, out CurrencyPrototype? p))
+                        currencySymbol = Loc.GetString(p.CurrencySymbol);
                 }
                 idCardEntityName = MetaData(idCardEntityUid).EntityName;
             }
 
-            var ui = _uiSystem.GetUiOrNull(uid, ATMUiKey.Key);
-            if (ui == null)
-                return;
-
-            _uiSystem.SetUiState(ui,new AtmBoundUserInterfaceState(
-                component.IdCardSlot.HasItem,
+            _uiSystem.SetUiState(uid.Owner,
+                ATMUiKey.Key,
+                new AtmBoundUserInterfaceState(
+                uid.Comp.IdCardSlot.HasItem,
                 idCardFullName,
                 idCardEntityName,
                 idCardStoredBankAccountNumber,
@@ -163,43 +202,53 @@ namespace Content.Server.Backmen.Economy.ATM;
                 currencySymbol
             ));
         }
-        private void OnRequestWithdraw(EntityUid uid, AtmComponent component, ATMRequestWithdrawMessage msg)
+        private void OnRequestWithdraw(Entity<AtmComponent> uid, ref ATMRequestWithdrawMessage msg)
         {
-            if (msg.Session.AttachedEntity is not { Valid: true } buyer)
+            if (msg.Actor is not { Valid: true } buyer)
                 return;
             if (msg.Amount <= 0)
             {
-                Deny(uid, component);
+                Deny(uid);
                 return;
             }
-            if (!TryGetBankAccountNumberFromStoredIdCard(component, out var bankAccountNumber))
+
+            if (!TryGetBankAccountNumberFromStoredIdCard(uid, out var bankAccountNumber))
             {
-                Deny(uid, component);
+                Deny(uid);
                 return;
             }
-            if (component.CurrencyWhitelist.Count == 0)
+
+            if (string.IsNullOrWhiteSpace(msg.AccountPin) || bankAccountNumber.Value.Comp.AccountPin != msg.AccountPin)
             {
-                Deny(uid, component);
+                Deny(uid);
                 return;
             }
-            var currency = component.CurrencyWhitelist.First();
+
+            if (uid.Comp.CurrencyWhitelist.Count == 0)
+            {
+                Deny(uid);
+                return;
+            }
+
+            var currency = uid.Comp.CurrencyWhitelist.First();
             if (!_proto.TryIndex<CurrencyPrototype>(currency, out var proto))
             {
-                Deny(uid, component);
+                Deny(uid);
                 return;
             }
+
             if (proto.Cash == null || !proto.CanWithdraw)
             {
-                Deny(uid, component);
+                Deny(uid);
                 return;
             }
 
             var amountRemaining = msg.Amount;
             if (!_bankManagerSystem.TryWithdrawFromBankAccount(
-                bankAccountNumber, msg.AccountPin,
-                new KeyValuePair<string, FixedPoint2>(currency, amountRemaining)))
+                bankAccountNumber,
+                new KeyValuePair<ProtoId<CurrencyPrototype>, FixedPoint2>(currency, amountRemaining)))
             {
-                Deny(uid, component);
+                Deny(uid);
                 return;
             }
 
@@ -214,22 +263,19 @@ namespace Content.Server.Backmen.Economy.ATM;
                 _hands.PickupOrDrop(buyer, ents.First());
                 amountRemaining -= value * amountToSpawn;
             }
-            Apply(uid, component);
-            _audioSystem.PlayPvs(component.SoundWithdrawCurrency, uid, AudioParams.Default.WithVolume(-2f));
-            UpdateComponentUserInterface(uid, component);
+
+            Apply(uid);
+            _audioSystem.PlayPvs(uid.Comp.SoundWithdrawCurrency, uid, AudioParams.Default.WithVolume(-2f));
+            UpdateComponentUserInterface(uid, msg.Actor);
         }
-        public bool TryAddCurrency(Dictionary<string, FixedPoint2> currency, EntityUid atm, AtmComponent? component = null)
+        public bool TryAddCurrency(Dictionary<ProtoId<CurrencyPrototype>, FixedPoint2> currency, Entity<AtmComponent> atm, EntityUid actor)
         {
-            if (!Resolve(atm,ref component))
-            {
-                return false;
-            }
             foreach (var type in currency)
             {
-                if (!component.CurrencyWhitelist.Contains(type.Key))
+                if (!atm.Comp.CurrencyWhitelist.Contains(type.Key))
                     return false;
             }
-            if (!TryGetBankAccountNumberFromStoredIdCard(component, out var bankAccountNumber))
+            if (!TryGetBankAccountNumberFromStoredIdCard(atm, out var bankAccountNumber))
                 return false;
 
             foreach (var type in currency)
@@ -237,36 +283,26 @@ namespace Content.Server.Backmen.Economy.ATM;
                 if (!_bankManagerSystem.TryInsertToBankAccount(bankAccountNumber, type))
                     return false;
             }
-            _audioSystem.PlayPvs(component.SoundInsertCurrency, atm, AudioParams.Default.WithVolume(-2f));
-            UpdateComponentUserInterface(atm, component);
+            _audioSystem.PlayPvs(atm.Comp.SoundInsertCurrency, atm, AudioParams.Default.WithVolume(-2f));
+            UpdateComponentUserInterface(atm, actor);
             return true;
         }
-        private bool TryGetBankAccountNumberFromStoredIdCard(AtmComponent component, out string storedBankAccountNumber)
+        private bool TryGetBankAccountNumberFromStoredIdCard(Entity<AtmComponent> component, [NotNullWhen(true)] out Entity<BankAccountComponent>? storedBankAccountNumber)
         {
-            storedBankAccountNumber = string.Empty;
-            if (component.IdCardSlot.Item is not { Valid: true } idCardEntityUid)
+            storedBankAccountNumber = null;
+            if (component.Comp.IdCardSlot.Item is not { Valid: true } idCardEntityUid)
                 return false;
-            if (!_entities.TryGetComponent<IdCardComponent>(idCardEntityUid, out var idCardComponent))
+            if (!HasComp<IdCardComponent>(idCardEntityUid))
                 return false;
-            if (idCardComponent.StoredBankAccountNumber == null)
-                return false;
-            storedBankAccountNumber = idCardComponent.StoredBankAccountNumber;
-            return true;
+
+            return _bankManagerSystem.TryGetBankAccount(idCardEntityUid, out storedBankAccountNumber);
         }
-        private void Deny(EntityUid atm, AtmComponent? component = null)
+        private void Deny(Entity<AtmComponent> atm)
         {
-            if (!Resolve(atm,ref component))
-            {
-                return;
-            }
-            _audioSystem.PlayPvs(component.SoundDeny, atm, AudioParams.Default.WithVolume(-2f));
+            _audioSystem.PlayPvs(atm.Comp.SoundDeny, atm, AudioParams.Default.WithVolume(-2f));
         }
-        private void Apply(EntityUid atm, AtmComponent? component = null)
+        private void Apply(Entity<AtmComponent> atm)
         {
-            if (!Resolve(atm,ref component))
-            {
-                return;
-            }
-            _audioSystem.PlayPvs(component.SoundApply, atm, AudioParams.Default.WithVolume(-2f));
+            _audioSystem.PlayPvs(atm.Comp.SoundApply, atm, AudioParams.Default.WithVolume(-2f));
         }
     }

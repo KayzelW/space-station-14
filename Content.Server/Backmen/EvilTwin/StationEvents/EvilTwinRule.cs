@@ -1,6 +1,6 @@
-﻿using Content.Server.GameTicking.Rules.Components;
+﻿using Content.Server.GameTicking.Components;
+using Content.Server.GameTicking.Rules.Components;
 using Content.Server.StationEvents.Events;
-using Robust.Shared.Random;
 
 namespace Content.Server.Backmen.EvilTwin.StationEvents;
 public sealed partial class EvilTwinRule : StationEventSystem<EvilTwinRuleComponent>

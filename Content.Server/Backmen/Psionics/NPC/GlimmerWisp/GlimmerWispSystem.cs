@@ -8,12 +8,12 @@ using Content.Shared.Verbs;
 using Content.Shared.Backmen.Psionics.Events;
 using Content.Shared.Rejuvenate;
 using Content.Shared.ActionBlocker;
-using Content.Shared.Pulling.Components;
 using Content.Server.Popups;
-using Content.Shared.Audio;
+using Content.Shared.Movement.Pulling.Components;
+using Content.Shared.NPC.Systems;
+using Robust.Server.Audio;
 using Robust.Shared.Player;
 using Robust.Shared.Utility;
-using Robust.Server.GameObjects;
 using Robust.Shared.Audio;
 
 namespace Content.Server.Backmen.Psionics.NPC.GlimmerWisp
@@ -63,14 +63,14 @@ namespace Content.Server.Backmen.Psionics.NPC.GlimmerWisp
             component.IsDraining = false;
             if (args.Handled || args.Args.Target == null)
             {
-                component.DrainStingStream?.Stop();
+                _audioSystem.Stop(component.DrainStingStream, component.DrainStingStream);
                 return;
             }
 
             if (args.Cancelled)
             {
-                component.DrainStingStream?.Stop();
-                if (TryComp<SharedPullableComponent>(args.Args.Target.Value, out var pullable) &&
+                _audioSystem.Stop(component.DrainStingStream, component.DrainStingStream);
+                if (TryComp<PullableComponent>(args.Args.Target.Value, out var pullable) &&
                     pullable.Puller != null)
                 {
                     _npcFaction.AggroEntity(uid, pullable.Puller.Value);
@@ -127,8 +127,7 @@ namespace Content.Server.Backmen.Psionics.NPC.GlimmerWisp
             var ev = new GlimmerWispDrainDoAfterEvent();
             var args = new DoAfterArgs(EntityManager ,uid, component.DrainDelay, ev, uid, target: target)
             {
-                BreakOnTargetMove = true,
-                BreakOnUserMove = false,
+                BreakOnMove = true,
                 BreakOnDamage = true,
                 DistanceThreshold = 2f,
                 NeedHand = false

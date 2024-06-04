@@ -1,8 +1,9 @@
+using Content.Server.Temperature.Systems;
+using Content.Shared.Alert;
 using Content.Shared.Atmos;
 using Content.Shared.Damage;
 using Content.Shared.FixedPoint;
-using Robust.Shared.Physics;
-using Robust.Shared.Physics.Components;
+using Robust.Shared.Prototypes;
 
 namespace Content.Server.Temperature.Components;
 
@@ -14,6 +15,9 @@ namespace Content.Server.Temperature.Components;
 [RegisterComponent]
 public sealed partial class TemperatureComponent : Component
 {
+    /// <summary>
+    /// Surface temperature which is modified by the environment.
+    /// </summary>
     [DataField, ViewVariables(VVAccess.ReadWrite)]
     public float CurrentTemperature = Atmospherics.T20C;
 
@@ -47,16 +51,12 @@ public sealed partial class TemperatureComponent : Component
     [DataField, ViewVariables(VVAccess.ReadWrite)]
     public float AtmosTemperatureTransferEfficiency = 0.1f;
 
-    [ViewVariables] public float HeatCapacity
+    [Obsolete("Use system method")]
+    public float HeatCapacity
     {
         get
         {
-            if (IoCManager.Resolve<IEntityManager>().TryGetComponent<PhysicsComponent>(Owner, out var physics) && physics.FixturesMass != 0)
-            {
-                return SpecificHeat * physics.FixturesMass;
-            }
-
-            return Atmospherics.MinimumHeatCapacity;
+            return IoCManager.Resolve<IEntityManager>().System<TemperatureSystem>().GetHeatCapacity(Owner, this);
         }
     }
 
@@ -80,4 +80,10 @@ public sealed partial class TemperatureComponent : Component
     /// </summary>
     [DataField]
     public bool TakingDamage = false;
+
+    [DataField]
+    public ProtoId<AlertPrototype> HotAlert = "Hot";
+
+    [DataField]
+    public ProtoId<AlertPrototype> ColdAlert = "Cold";
 }

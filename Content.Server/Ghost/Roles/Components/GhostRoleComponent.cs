@@ -1,17 +1,18 @@
-﻿using Content.Server.Mind.Commands;
+﻿using Content.Server.Ghost.Roles.Raffles;
+using Content.Server.Mind.Commands;
 using Content.Shared.Roles;
 
 namespace Content.Server.Ghost.Roles.Components
 {
     [RegisterComponent]
-    [Access(typeof(GhostRoleSystem))]
+    [Access(typeof(GhostRoleSystem),typeof(Content.Shared.Backmen.Reinforcement.SharedReinforcementSystem))]
     public sealed partial class GhostRoleComponent : Component
     {
         [DataField("name")] private string _roleName = "Unknown";
 
         [DataField("description")] private string _roleDescription = "Unknown";
 
-        [DataField("rules")] private string _roleRules = "";
+        [DataField("rules")] private string _roleRules = "ghost-role-component-default-rules";
 
         [DataField("requirements")]
         public HashSet<JobRequirement>? Requirements;
@@ -39,7 +40,7 @@ namespace Content.Server.Ghost.Roles.Components
             set
             {
                 _roleName = value;
-                EntitySystem.Get<GhostRoleSystem>().UpdateAllEui();
+                IoCManager.Resolve<IEntityManager>().System<GhostRoleSystem>().UpdateAllEui();
             }
         }
 
@@ -51,7 +52,7 @@ namespace Content.Server.Ghost.Roles.Components
             set
             {
                 _roleDescription = value;
-                EntitySystem.Get<GhostRoleSystem>().UpdateAllEui();
+                IoCManager.Resolve<IEntityManager>().System<GhostRoleSystem>().UpdateAllEui();
             }
         }
 
@@ -63,7 +64,7 @@ namespace Content.Server.Ghost.Roles.Components
             set
             {
                 _roleRules = value;
-                EntitySystem.Get<GhostRoleSystem>().UpdateAllEui();
+                IoCManager.Resolve<IEntityManager>().System<GhostRoleSystem>().UpdateAllEui();
             }
         }
 
@@ -94,5 +95,11 @@ namespace Content.Server.Ghost.Roles.Components
         [DataField("whitelistRequired")]
         public bool WhitelistRequired = false;
         // end-backmen: whitelist
+        /// <summary>
+        /// If set, ghost role is raffled, otherwise it is first-come-first-serve.
+        /// </summary>
+        [DataField("raffle")]
+        [Access(typeof(GhostRoleSystem), Other = AccessPermissions.ReadWriteExecute)] // FIXME Friends
+        public GhostRoleRaffleConfig? RaffleConfig { get; set; }
     }
 }

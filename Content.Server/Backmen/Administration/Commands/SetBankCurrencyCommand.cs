@@ -6,6 +6,8 @@ using Content.Server.Backmen.Economy;
 using System.Linq;
 using Content.Shared.Database;
 using Content.Shared.FixedPoint;
+using Content.Shared.Store;
+using Robust.Shared.Prototypes;
 
 namespace Content.Server.Backmen.Administration.Commands;
 
@@ -29,7 +31,7 @@ public sealed class SetBankCurrencyCommand : IConsoleCommand
             return;
         }
 
-        if (!bankManagerSystem.TryGetBankAccount(args[0], out var bankAccountOwner, out var bankAccount))
+        if (!bankManagerSystem.TryGetBankAccount(args[0], out var bankAccount))
         {
             shell.WriteError("Банковский счет не найден!");
             return;
@@ -37,7 +39,7 @@ public sealed class SetBankCurrencyCommand : IConsoleCommand
 
         if (args.Length == 1)
         {
-            shell.WriteLine($"Банковский баланс({bankAccount.AccountName}): {bankAccount.Balance} {bankAccount.CurrencyType}");
+            shell.WriteLine($"Банковский баланс({bankAccount.Value.Comp.AccountName}): {bankAccount.Value.Comp.Balance} {bankAccount.Value.Comp.CurrencyType}");
             return;
         }
 
@@ -51,10 +53,10 @@ public sealed class SetBankCurrencyCommand : IConsoleCommand
         {
             case > 0:
             {
-                if (!bankManagerSystem.TryInsertToBankAccount(bankAccountOwner,
-                        new KeyValuePair<string, FixedPoint2>(bankAccount.CurrencyType, FixedPoint2.New(balance)), bankAccount))
+                if (!bankManagerSystem.TryInsertToBankAccount(bankAccount,
+                        new KeyValuePair<ProtoId<CurrencyPrototype>, FixedPoint2>(bankAccount.Value.Comp.CurrencyType, FixedPoint2.New(balance))))
                 {
-                    shell.WriteError($"Добавить на счет не удалось! Баланс аккаунта: {bankAccount.Balance}");
+                    shell.WriteError($"Добавить на счет не удалось! Баланс аккаунта: {bankAccount.Value.Comp.Balance}");
                     return;
                 }
 
@@ -62,22 +64,22 @@ public sealed class SetBankCurrencyCommand : IConsoleCommand
             }
             case < 0:
             {
-                if (!bankManagerSystem.TryWithdrawFromBankAccount(bankAccountOwner,
-                        new KeyValuePair<string, FixedPoint2>(bankAccount.CurrencyType, FixedPoint2.New(Math.Abs(balance))), bankAccount))
+                if (!bankManagerSystem.TryWithdrawFromBankAccount(bankAccount,
+                        new KeyValuePair<ProtoId<CurrencyPrototype>, FixedPoint2>(bankAccount.Value.Comp.CurrencyType, FixedPoint2.New(Math.Abs(balance)))))
                 {
-                    shell.WriteError($"Списать со счета не удалось! Баланс аккаунта: {bankAccount.Balance}");
+                    shell.WriteError($"Списать со счета не удалось! Баланс аккаунта: {bankAccount.Value.Comp.Balance}");
                     return;
                 }
 
                 break;
             }
             default:
-                bankManagerSystem.TrySetBalance(bankAccountOwner,balance);
+                bankManagerSystem.TrySetBalance(bankAccount.Value,balance);
                 return;
         }
 
         _adminLogger.Add(LogType.AdminMessage, LogImpact.Extreme,
-            $"Admin {(shell.Player != null ? shell.Player.Name : "An administrator")} SetBankCurrency {bankAccount.AccountName} #{bankAccount.AccountNumber} changed by: {balance}, new balance: {bankAccount.Balance}");
+            $"Admin {(shell.Player != null ? shell.Player.Name : "An administrator")} SetBankCurrency {bankAccount.Value.Comp.AccountName} #{bankAccount.Value.Comp.AccountNumber} changed by: {balance}, new balance: {bankAccount.Value.Comp.Balance}");
     }
 
     public CompletionResult GetCompletion(IConsoleShell shell, string[] args)
@@ -86,7 +88,7 @@ public sealed class SetBankCurrencyCommand : IConsoleCommand
         {
             1 => CompletionResult.FromHintOptions(
                 _entityManager.System<BankManagerSystem>().ActiveBankAccounts
-                    .Select(x => new CompletionOption(x.Value.account.AccountNumber, x.Value.account.AccountName))
+                    .Select(x => new CompletionOption(x.Value.Comp.AccountNumber, x.Value.Comp.AccountName))
                 , "Аккаунт №"),
             _ => CompletionResult.Empty
         };

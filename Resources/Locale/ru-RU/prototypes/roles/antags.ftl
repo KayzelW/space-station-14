@@ -21,4 +21,6 @@ roles-antag-flesh-cultist-objective = Оставайтесь в тени, гот
 roles-antag-flesh-cultist-leader-name = Лидер культа плоти
 roles-antag-flesh-cultist-leader-objective = Воплощайте цели культа в реальность. Обеспечьте выживание всех членов культа.
 roles-antag-space-ninja-name = Космический ниндзя
-roles-antag-space-ninja-objective = Используй свою скрытность, чтобы устроить диверсию на станции, питайтесь от электрических проводов.
+roles-antag-space-ninja-objective = Используйте свою скрытность, чтобы устроить диверсию на станции, подпитывайтесь от электрических проводов.
+roles-antag-thief-name = Вор
+roles-antag-thief-objective = Пополните свою личную коллекцию имуществом Nanotrasen, не прибегая к насилию.

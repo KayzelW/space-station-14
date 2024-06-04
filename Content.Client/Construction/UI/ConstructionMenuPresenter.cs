@@ -1,9 +1,12 @@
 using System.Linq;
 using Content.Client.UserInterface.Systems.MenuBar.Widgets;
 using Content.Shared.Construction.Prototypes;
+using Content.Shared.Tag;
+using Content.Shared.Whitelist;
 using Robust.Client.GameObjects;
 using Robust.Client.Graphics;
 using Robust.Client.Placement;
+using Robust.Client.Player;
 using Robust.Client.UserInterface;
 using Robust.Client.UserInterface.Controls;
 using Robust.Client.Utility;
@@ -21,12 +24,15 @@ namespace Content.Client.Construction.UI
     /// </summary>
     internal sealed class ConstructionMenuPresenter : IDisposable
     {
+        [Dependency] private readonly EntityManager _entManager = default!;
         [Dependency] private readonly IEntitySystemManager _systemManager = default!;
         [Dependency] private readonly IPrototypeManager _prototypeManager = default!;
         [Dependency] private readonly IPlacementManager _placementManager = default!;
         [Dependency] private readonly IUserInterfaceManager _uiManager = default!;
+        [Dependency] private readonly IPlayerManager _playerManager = default!;
 
         private readonly IConstructionMenuView _constructionView;
+        private readonly EntityWhitelistSystem _whitelistSystem;
 
         private ConstructionSystem? _constructionSystem;
         private ConstructionPrototype? _selected;
@@ -75,6 +81,7 @@ namespace Content.Client.Construction.UI
             // This is a lot easier than a factory
             IoCManager.InjectDependencies(this);
             _constructionView = new ConstructionMenu();
+            _whitelistSystem = _entManager.System<EntityWhitelistSystem>();
 
             // This is required so that if we load after the system is initialized, we can bind to it immediately
             if (_systemManager.TryGetEntitySystem<ConstructionSystem>(out var constructionSystem))
@@ -150,6 +157,11 @@ namespace Content.Client.Construction.UI
             foreach (var recipe in _prototypeManager.EnumeratePrototypes<ConstructionPrototype>())
             {
                 if (recipe.Hide)
+                    continue;
+
+                if (_playerManager.LocalSession == null
+                || _playerManager.LocalEntity == null
+                || _whitelistSystem.IsWhitelistFail(recipe.EntityWhitelist, _playerManager.LocalEntity.Value))
                     continue;
 
                 if (!string.IsNullOrEmpty(search))
@@ -386,7 +398,7 @@ namespace Content.Client.Construction.UI
                 if (IsAtFront)
                 {
                     WindowOpen = false;
-                    _uiManager.GetActiveUIWidget<GameTopMenuBar>().CraftingButton.Pressed = false; // This does not call CraftingButtonToggled
+                    _uiManager.GetActiveUIWidget<GameTopMenuBar>().CraftingButton.SetClickPressed(false); // This does not call CraftingButtonToggled
                 }
                 else
                     _constructionView.MoveToFront();
@@ -394,7 +406,7 @@ namespace Content.Client.Construction.UI
             else
             {
                 WindowOpen = true;
-                _uiManager.GetActiveUIWidget<GameTopMenuBar>().CraftingButton.Pressed = true; // This does not call CraftingButtonToggled
+                _uiManager.GetActiveUIWidget<GameTopMenuBar>().CraftingButton.SetClickPressed(true); // This does not call CraftingButtonToggled
             }
         }
 

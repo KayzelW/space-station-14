@@ -1,9 +1,11 @@
 ﻿using Content.Server.Backmen.Abilities.Psionics;
 using Content.Server.Backmen.Psionics;
 using Content.Server.Backmen.StationEvents.Components;
+using Content.Server.GameTicking.Components;
 using Content.Server.GameTicking.Rules.Components;
 using Content.Server.StationEvents.Events;
 using Content.Shared.Backmen.Abilities.Psionics;
+using Content.Shared.Backmen.Psionics.Components;
 using Content.Shared.Backmen.Psionics.Glimmer;
 using Content.Shared.Mobs.Systems;
 using Robust.Shared.Random;
@@ -23,8 +25,8 @@ internal sealed class NoosphericStormRule : StationEventSystem<NoosphericStormRu
 
         List<EntityUid> validList = new();
 
-        var query = EntityManager.EntityQueryEnumerator<PotentialPsionicComponent>();
-        while (query.MoveNext(out var potentialPsionic, out var potentialPsionicComponent))
+        var query = EntityQueryEnumerator<PotentialPsionicComponent>();
+        while (query.MoveNext(out var potentialPsionic, out _))
         {
             if (_mobStateSystem.IsDead(potentialPsionic))
                 continue;
@@ -51,7 +53,7 @@ internal sealed class NoosphericStormRule : StationEventSystem<NoosphericStormRu
 
         // Increase glimmer.
         var baseGlimmerAdd = _robustRandom.Next(component.BaseGlimmerAddMin, component.BaseGlimmerAddMax);
-        var glimmerSeverityMod = 1 + (component.GlimmerSeverityCoefficient * (GetSeverityModifier() - 1f));
+        var glimmerSeverityMod = 1.66f;//1 + (component.GlimmerSeverityCoefficient * (GetSeverityModifier() - 1f));
         var glimmerAdded = (int) Math.Round(baseGlimmerAdd * glimmerSeverityMod);
 
         _glimmerSystem.Glimmer += glimmerAdded;

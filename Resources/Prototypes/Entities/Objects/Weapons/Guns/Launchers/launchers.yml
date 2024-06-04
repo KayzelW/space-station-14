@@ -12,7 +12,7 @@
     slots:
     - Back
   - type: Item
-    size: 60
+    size: Huge
   - type: StaticPrice
     price: 500
   - type: ContainerContainer
@@ -22,9 +22,10 @@
 
 - type: entity
   name: china lake
-  parent: BaseWeaponLauncher
+  parent: [BaseWeaponLauncher, BaseGunWieldable]
   id: WeaponLauncherChinaLake
   description: PLOOP
+  noSpawn: true
   components:
   - type: Sprite
     sprite: Objects/Weapons/Guns/Launchers/china_lake.rsi
@@ -33,6 +34,9 @@
         map: ["enum.GunVisualLayers.Base"]
   - type: Clothing
     sprite: Objects/Weapons/Guns/Launchers/china_lake.rsi
+    slots:
+    - Back
+    - suitStorage
   - type: AmmoCounter
   - type: Gun
     fireRate: 1
@@ -54,6 +58,7 @@
   name: RPG-7
   parent: BaseWeaponLauncher
   id: WeaponLauncherRocket
+  noSpawn: true
   description: A modified ancient rocket-propelled grenade launcher.
   components:
   - type: Sprite
@@ -144,7 +149,7 @@
     - type: BallisticAmmoProvider
       whitelist:
         tags:
-          - Grenade
+          - CannonBall
       capacity: 1
       proto: CannonBall
       soundInsert:
@@ -158,6 +163,8 @@
   id: WeaponTetherGun
   description: Manipulates gravity around objects to fling them at high velocities.
   components:
+    - type: Item
+      storedRotation: -90
     - type: TetherGun
       frequency: 5
       dampingRatio: 4
@@ -195,6 +202,8 @@
   id: WeaponForceGun
   description: Manipulates gravity around objects to fling them at high velocities.
   components:
+    - type: Item
+      storedRotation: -90
     - type: ForceGun
       frequency: 15
       dampingRatio: 4
@@ -240,7 +249,6 @@
     - type: Gun
       soundGunshot: /Audio/Weapons/Guns/Gunshots/harpoon.ogg
       fireRate: 0.5
-    - type: RechargeCycleAmmo
     - type: BasicEntityAmmoProvider
       proto: GrapplingHook
       capacity: 1
@@ -267,7 +275,7 @@
   name: tether gun
   parent: BaseItem
   id: WeaponTetherGunAdmin
-  suffix: admin
+  suffix: Admeme
   description: Manipulates gravity around objects to fling them at high velocities.
   components:
     - type: TetherGun
@@ -306,7 +314,7 @@
   name: force gun
   parent: BaseItem
   id: WeaponForceGunAdmin
-  suffix: Admin
+  suffix: Admeme
   description: Manipulates gravity around objects to fling them at high velocities.
   components:
     - type: ForceGun

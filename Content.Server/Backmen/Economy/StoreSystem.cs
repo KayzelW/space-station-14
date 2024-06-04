@@ -1,16 +1,13 @@
 ﻿// ReSharper disable once CheckNamespace
 
-using System.Linq;
 using Content.Server.Access.Systems;
 using Content.Server.Backmen.Economy;
 using Content.Server.Store.Components;
 using Content.Server.VendingMachines;
 using Content.Shared.Backmen.Store;
 using Content.Shared.Store;
+using Content.Shared.Store.Components;
 using Content.Shared.VendingMachines;
-using Robust.Server.Player;
-using Robust.Shared.Audio;
-using Robust.Shared.Players;
 
 namespace Content.Server.Store.Systems;
 
@@ -44,7 +41,8 @@ public sealed partial class StoreSystem
         {
             return false;
         }
-        if (msg.Session.AttachedEntity is not { Valid: true } buyer)
+
+        if (msg.Actor is not { Valid: true } buyer)
             return false;
 
         //check that we have enough money
@@ -67,9 +65,7 @@ public sealed partial class StoreSystem
                 return false;
             }
 
-            if (!_bankManagerSystem.TryWithdrawFromBankAccount(
-                    idCardComponent.StoredBankAccountNumber,
-                    idCardComponent.StoredBankAccountPin, currency))
+            if (!_bankManagerSystem.TryWithdrawFromBankAccount(idCardComponent.Owner, currency, null))
             {
                 _PlayDeny(uid);
                 _popup.PopupEntity(Loc.GetString("store-no-money"),uid);

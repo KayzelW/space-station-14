@@ -2,6 +2,8 @@ using Robust.Shared.Random;
 using Content.Server.GameTicking.Rules.Components;
 using Content.Server.Backmen.Psionics.Glimmer;
 using Content.Server.Backmen.StationEvents.Components;
+using Content.Server.GameTicking.Components;
+using Content.Server.Station.Systems;
 using Content.Server.StationEvents.Events;
 
 namespace Content.Server.Backmen.StationEvents.Events;
@@ -9,6 +11,7 @@ namespace Content.Server.Backmen.StationEvents.Events;
 internal sealed class GlimmerRevenantRule : StationEventSystem<GlimmerRevenantRuleComponent>
 {
     [Dependency] private readonly IRobustRandom _random = default!;
+    [Dependency] private readonly StationSystem _stationSystem = default!;
 
     protected override void Started(EntityUid uid, GlimmerRevenantRuleComponent component, GameRuleComponent gameRule, GameRuleStartedEvent args)
     {
@@ -16,10 +19,16 @@ internal sealed class GlimmerRevenantRule : StationEventSystem<GlimmerRevenantRu
 
         List<EntityUid> glimmerSources = new();
 
-        var query = EntityQueryEnumerator<GlimmerSourceComponent>();
-        while (query.MoveNext(out var source, out _))
+        if (!TryGetRandomStation(out var station))
         {
-            glimmerSources.Add(source);
+            return;
+        }
+
+        var query = EntityQueryEnumerator<GlimmerSourceComponent,TransformComponent>();
+        while (query.MoveNext(out var source, out _, out var transform))
+        {
+            if (_stationSystem.GetOwningStation(source, transform) == station)
+                glimmerSources.Add(source);
         }
 
         if (glimmerSources.Count == 0)

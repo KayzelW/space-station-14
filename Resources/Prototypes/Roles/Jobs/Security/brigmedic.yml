@@ -11,7 +11,7 @@
       department: Security
       time: 7200
   startingGear: BrigmedicGear
-  icon: "JobIconSecurityCadet"
+  icon: "JobIconBrigmedic"
   supervisors: job-supervisors-hos
   canBeAntag: false
   access:
@@ -33,21 +33,3 @@
           flatBonus: 0.025
     - !type:AddImplantSpecial
       implants: [ MindShieldImplant ]
-
-- type: startingGear
-  id: BrigmedicGear
-  equipment:
-    jumpsuit: ClothingUniformJumpsuitBrigmedic
-    back: ClothingBackpackSecurityFilled
-    shoes: ClothingShoesBootsJackSec # Corvax-Resprite
-    gloves: ClothingHandsGlovesNitrile
-    eyes: ClothingEyesHudMedical
-    head: ClothingHeadHatBeretSecurityMedic # Corvax-Resprite
-    outerClothing: ClothingOuterVestArmorMedSec # Corvax-Resprite
-    id: BrigmedicPDA
-    ears: ClothingHeadsetSecurity
-    mask: ClothingMaskSterile
-    belt: ClothingBeltMedicalFilled
-  innerClothingSkirt: ClothingUniformJumpskirtBrigmedic
-  satchel: ClothingBackpackSatchelSecurityFilled
-  duffelbag: ClothingBackpackDuffelSecurityFilled

@@ -1,7 +1,7 @@
 using Content.Server.Chat.Systems;
 using Content.Server.Speech;
 using Content.Server.Speech.Components;
-using Robust.Server.GameObjects;
+using Robust.Shared.Player;
 using static Content.Server.Chat.Systems.ChatSystem;
 
 namespace Content.Server.SurveillanceCamera;
@@ -16,10 +16,10 @@ public sealed class SurveillanceCameraMicrophoneSystem : EntitySystem
         SubscribeLocalEvent<SurveillanceCameraMicrophoneComponent, ComponentInit>(OnInit);
         SubscribeLocalEvent<SurveillanceCameraMicrophoneComponent, ListenEvent>(RelayEntityMessage);
         SubscribeLocalEvent<SurveillanceCameraMicrophoneComponent, ListenAttemptEvent>(CanListen);
-        SubscribeLocalEvent<ExpandICChatRecipientstEvent>(OnExpandRecipients);
+        SubscribeLocalEvent<ExpandICChatRecipientsEvent>(OnExpandRecipients);
     }
 
-    private void OnExpandRecipients(ExpandICChatRecipientstEvent ev)
+    private void OnExpandRecipients(ExpandICChatRecipientsEvent ev)
     {
         var xformQuery = GetEntityQuery<TransformComponent>();
         var sourceXform = Transform(ev.Source);

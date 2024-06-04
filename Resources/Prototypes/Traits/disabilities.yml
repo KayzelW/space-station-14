@@ -9,16 +9,32 @@
   blacklist:
     components:
       - BSSDrone #backmen: bssdrone
+      - StationAI # backmen: AI
+      - BorgChassis
   components:
     - type: PermanentBlindness
 
 - type: trait
+  id: PoorVision
+  name: trait-poor-vision-name
+  description: trait-poor-vision-desc
+  traitGear: ClothingEyesGlasses
+  whitelist:
+    components:
+      - Blindable
+  components:
+    - type: PermanentBlindness
+      blindness: 4
+
+- type: trait
   id: Narcolepsy
   name: trait-narcolepsy-name
-  description: trait-narcolepsy-decs
   blacklist:
     components:
       - BSSDrone #backmen: bssdrone
+      - StationAI # backmen: AI
+      - BorgChassis
+  description: trait-narcolepsy-desc
   components:
     - type: Narcolepsy
       timeBetweenIncidents: 300, 600
@@ -30,6 +46,9 @@
   blacklist:
     components:
       - BSSDrone #backmen: bssdrone
+      - StationAI # backmen: AI
+      - BorgChassis
+  description: trait-pacifist-desc
   components:
     - type: Pacified
 
@@ -40,6 +59,8 @@
   blacklist:
     components:
       - BSSDrone #backmen: bssdrone
+      - StationAI # backmen: AI
+      - BorgChassis
   components:
     - type: Paracusia
       minTimeBetweenIncidents: 0.1
@@ -49,39 +70,54 @@
         collection: Paracusia
 
 - type: trait
+  id: Unrevivable
+  name: trait-unrevivable-name
+  description: trait-unrevivable-desc
+  components:
+    - type: Unrevivable
+
+- type: trait
   id: Muted
   name: trait-muted-name
   description: trait-muted-desc
   blacklist:
     components:
       - BSSDrone #backmen: bssdrone
+      - StationAI # backmen: AI
+      - BorgChassis
   components:
     - type: Muted
 
-- type: trait
-  id: Uncloneable
-  name: trait-uncloneable-name
-  description: trait-uncloneable-desc
-  blacklist:
-    components:
-      - BSSDrone
-  components:
-    - type: Uncloneable
-
-- type: trait
-  id: WheelchairBound
-  name: trait-wheelchair-bound-name
-  description: trait-wheelchair-bound-desc
-  blacklist:
-    components:
-      - BSSDrone #backmen: bssdrone
-  components:
-    - type: WheelchairBound
-    - type: LegsParalyzed
+#- type: trait
+#  id: WheelchairBound
+#  name: trait-wheelchair-bound-name
+#  description: trait-wheelchair-bound-desc
+#  blacklist:
+#    components:
+#      - Felinid
+#      - BSSDrone #backmen: bssdrone
+#      - StationAI # backmen: AI
+#      - BorgChassis
+#  components:
+#    - type: BuckleOnMapInit
+#      prototype: VehicleWheelchair
+#    - type: LegsParalyzed
 
 - type: trait
   id: FrontalLisp
   name: trait-frontal-lisp-name
   description: trait-frontal-lisp-desc
+  blacklist:
+    components:
+    - BSSDrone #backmen: bssdrone
+    - StationAI # backmen: AI
+    - BorgChassis
   components:
     - type: FrontalLisp
+
+- type: trait
+  id: Snoring
+  name: trait-snoring-name
+  description: trait-snoring-desc
+  components:
+    - type: Snoring

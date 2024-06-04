@@ -10,7 +10,6 @@ using Robust.Server.Maps;
 using Robust.Shared.Map;
 using Content.Shared.Backmen.CCVar;
 using Robust.Shared.Configuration;
-using Robust.Shared.Random;
 using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using Content.Shared.Backmen.Shipyard.Components;
@@ -27,7 +26,6 @@ public sealed partial class ShipyardSystem : SharedShipyardSystem
     [Dependency] private readonly StationSystem _station = default!;
     [Dependency] private readonly MapLoaderSystem _map = default!;
     [Dependency] private readonly ShipyardConsoleSystem _shipyardConsole = default!;
-    [Dependency] private readonly IRobustRandom _random = default!;
     [Dependency] private readonly MetaDataSystem _metaDataSystem = default!;
 
     public MapId? ShipyardMap { get; private set; }
@@ -107,7 +105,7 @@ public sealed partial class ShipyardSystem : SharedShipyardSystem
 
         _sawmill.Info($"Shuttle {shuttlePath} was purchased at {ToPrettyString((EntityUid) stationUid)} for {price:f2}");
         //can do TryFTLDock later instead if we need to keep the shipyard map paused
-        _shuttle.FTLTravel(shuttleGrid.Value, shuttle, targetGrid.Value, 0f, 15f, true);
+        _shuttle.FTLToDock(shuttleGrid.Value, shuttle, targetGrid.Value);
         return true;
     }
 

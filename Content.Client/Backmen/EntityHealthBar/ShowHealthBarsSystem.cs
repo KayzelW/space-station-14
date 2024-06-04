@@ -1,9 +1,8 @@
 using Content.Shared.Backmen.EntityHealthBar;
-using Content.Shared.Backmen.EntityHealthBar;
 using Content.Shared.GameTicking;
-using Robust.Client.GameObjects;
 using Robust.Client.Graphics;
 using Robust.Client.Player;
+using Robust.Shared.Player;
 using Robust.Shared.Prototypes;
 
 namespace Content.Client.Backmen.EntityHealthBar;
@@ -11,52 +10,70 @@ namespace Content.Client.Backmen.EntityHealthBar;
 public sealed class ShowHealthBarsSystem : EntitySystem
 {
     [Dependency] private readonly IPlayerManager _player = default!;
-    [Dependency] private readonly IPrototypeManager _protoMan = default!;
     [Dependency] private readonly IOverlayManager _overlayMan = default!;
 
-    private EntityHealthBarOverlay _overlay = default!;
+    private BkmEntityHealthBarOverlay _overlay = default!;
     public override void Initialize()
     {
         base.Initialize();
 
-        SubscribeLocalEvent<ShowHealthBarsComponent, ComponentInit>(OnInit);
-        SubscribeLocalEvent<ShowHealthBarsComponent, ComponentRemove>(OnRemove);
-        SubscribeLocalEvent<ShowHealthBarsComponent, PlayerAttachedEvent>(OnPlayerAttached);
-        SubscribeLocalEvent<ShowHealthBarsComponent, PlayerDetachedEvent>(OnPlayerDetached);
+        SubscribeLocalEvent<BkmShowHealthBarsComponent, ComponentInit>(OnInit);
+        SubscribeLocalEvent<BkmShowHealthBarsComponent, ComponentRemove>(OnRemove);
+        SubscribeLocalEvent<BkmShowHealthBarsComponent, AfterAutoHandleStateEvent>(OnUpdate);
         SubscribeLocalEvent<RoundRestartCleanupEvent>(OnRoundRestart);
 
-        _overlay = new(EntityManager, _protoMan);
+        _player.LocalPlayerAttached += OnPlayerAttached;
+        _player.LocalPlayerDetached += OnPlayerDetached;
+
+        _overlay = new();
     }
 
-    private void OnInit(EntityUid uid, ShowHealthBarsComponent component, ComponentInit args)
+    public override void Shutdown()
     {
-        if (_player.LocalPlayer?.ControlledEntity == uid)
+        base.Shutdown();
+
+        _player.LocalPlayerAttached -= OnPlayerAttached;
+        _player.LocalPlayerDetached -= OnPlayerDetached;
+    }
+
+    private void OnUpdate(Entity<BkmShowHealthBarsComponent> ent, ref AfterAutoHandleStateEvent args)
+    {
+        _overlay.DamageContainers.Clear();
+        _overlay.DamageContainers.AddRange(ent.Comp.DamageContainers);
+    }
+
+    private void OnInit(EntityUid uid, BkmShowHealthBarsComponent component, ComponentInit args)
+    {
+        if (_player.LocalSession?.AttachedEntity == uid)
         {
             ApplyOverlays(component);
         }
     }
 
-    private void OnRemove(EntityUid uid, ShowHealthBarsComponent component, ComponentRemove args)
+    private void OnRemove(EntityUid uid, BkmShowHealthBarsComponent component, ComponentRemove args)
     {
-        if (_player.LocalPlayer?.ControlledEntity == uid)
+        if (_player.LocalSession?.AttachedEntity == uid)
         {
             _overlayMan.RemoveOverlay(_overlay);
         }
     }
 
-    private void OnPlayerAttached(EntityUid uid, ShowHealthBarsComponent component, PlayerAttachedEvent args)
+    private void OnPlayerAttached(EntityUid uid)
     {
-        ApplyOverlays(component);
+        if (TryComp<BkmShowHealthBarsComponent>(uid, out var comp))
+        {
+            ApplyOverlays(comp);
+        }
     }
 
-    private void ApplyOverlays(ShowHealthBarsComponent component)
+    private void ApplyOverlays(BkmShowHealthBarsComponent component)
     {
         _overlayMan.AddOverlay(_overlay);
         _overlay.DamageContainers.Clear();
         _overlay.DamageContainers.AddRange(component.DamageContainers);
     }
 
-    private void OnPlayerDetached(EntityUid uid, ShowHealthBarsComponent component, PlayerDetachedEvent args)
+    private void OnPlayerDetached(EntityUid uid)
     {
         _overlayMan.RemoveOverlay(_overlay);
     }

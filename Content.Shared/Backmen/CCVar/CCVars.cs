@@ -7,6 +7,9 @@ namespace Content.Shared.Backmen.CCVar;
 [CVarDefs]
 public sealed class CCVars
 {
+    public static readonly CVarDef<bool>
+        GameDiseaseEnabled = CVarDef.Create("game.disease", true, CVar.SERVERONLY);
+
     /*
      * GPT
      */
@@ -67,6 +70,9 @@ public sealed class CCVars
     public static readonly CVarDef<string> SponsorsApiUrl =
         CVarDef.Create("sponsor.api_url", "", CVar.SERVERONLY);
 
+    public static readonly CVarDef<string> SponsorsSelectedGhost =
+        CVarDef.Create("sponsor.ghost", "", CVar.REPLICATED | CVar.CLIENT | CVar.ARCHIVE);
+
 
     public static readonly CVarDef<bool>
         EconomyWagesEnabled = CVarDef.Create("economy.wages_enabled", true, CVar.SERVERONLY);
@@ -120,11 +126,50 @@ public sealed class CCVars
  */
 
     public static readonly CVarDef<int> FleshCultMinPlayers =
-        CVarDef.Create("fleshcult.min_players", 25);
+        CVarDef.Create("fleshcult.min_players", 25, CVar.SERVERONLY);
 
     public static readonly CVarDef<int> FleshCultMaxCultist =
-        CVarDef.Create("fleshcult.max_cultist", 6);
+        CVarDef.Create("fleshcult.max_cultist", 6, CVar.SERVERONLY);
 
     public static readonly CVarDef<int> FleshCultPlayersPerCultist =
-        CVarDef.Create("fleshcult.players_per_cultist", 7);
+        CVarDef.Create("fleshcult.players_per_cultist", 7, CVar.SERVERONLY);
+
+    /*
+     * bloodsucker
+     */
+
+    public static readonly CVarDef<int> BloodsuckerMaxPerBloodsucker =
+        CVarDef.Create("bloodsucker.max", 5, CVar.SERVERONLY);
+
+    public static readonly CVarDef<int> BloodsuckerPlayersPerBloodsucker =
+        CVarDef.Create("bloodsucker.players_per", 10, CVar.SERVERONLY);
+
+    /*
+     * Blob
+     */
+
+    public static readonly CVarDef<int> BlobMax =
+        CVarDef.Create("blob.max", 3, CVar.SERVERONLY);
+
+    public static readonly CVarDef<int> BlobPlayersPer =
+        CVarDef.Create("blob.players_per", 20, CVar.SERVERONLY);
+
+    /*
+     * SpecForces
+     */
+    public static readonly CVarDef<int> SpecForceDelay =
+        CVarDef.Create("specforce.delay", 2, CVar.SERVERONLY);
+
+
+    /*
+     * enabling a roll to enter a ghost role for one player from the vote
+     */
+    public static readonly CVarDef<bool>
+        GhostRollerEnabled = CVarDef.Create("ghost.roller_enabled", false, CVar.SERVERONLY);
+
+    /// <summary>
+    /// the time that will be given to throw a number to vote for the ghost role
+    /// </summary>
+    public static readonly CVarDef<int> GhostRollerTime =
+        CVarDef.Create("ghost.roller_time", 20, CVar.REPLICATED | CVar.SERVER);
 }

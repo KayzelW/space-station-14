@@ -1,5 +1,4 @@
 using Content.Server.Actions;
-using Content.Shared.Actions;
 using Content.Shared.StatusEffect;
 using Content.Shared.Damage;
 using Content.Shared.Revenant.Components;
@@ -7,7 +6,9 @@ using Content.Server.Guardian;
 using Content.Server.Bible.Components;
 using Content.Server.Popups;
 using Content.Shared.Backmen.Abilities.Psionics;
+using Content.Shared.Backmen.Psionics;
 using Content.Shared.Backmen.Psionics.Events;
+using Robust.Shared.Audio.Systems;
 using Robust.Shared.Prototypes;
 using Robust.Shared.Player;
 using Robust.Shared.Random;
@@ -63,6 +64,11 @@ public sealed class DispelPowerSystem : EntitySystem
 
     private void OnPowerUsed(DispelPowerActionEvent args)
     {
+        if (HasComp<PsionicallyInvisibleComponent>(args.Performer))
+        {
+            _popupSystem.PopupCursor(Loc.GetString("cant-use-in-invisible"),args.Performer);
+            return;
+        }
         if (HasComp<PsionicInsulationComponent>(args.Target))
             return;
 
@@ -76,12 +82,15 @@ public sealed class DispelPowerSystem : EntitySystem
         }
     }
 
+    [ValidatePrototypeId<EntityPrototype>]
+    private const string Ash = "Ash";
+
     private void OnDispelled(EntityUid uid, DispellableComponent component, DispelledEvent args)
     {
         QueueDel(uid);
-        Spawn("Ash", Transform(uid).Coordinates);
+        Spawn(Ash, Transform(uid).Coordinates);
         _popupSystem.PopupCoordinates(Loc.GetString("psionic-burns-up", ("item", uid)), Transform(uid).Coordinates, Filter.Pvs(uid), true, Shared.Popups.PopupType.MediumCaution);
-        _audioSystem.Play("/Audio/Effects/lightburn.ogg", Filter.Pvs(uid), uid, true);
+        _audioSystem.PlayPvs("/Audio/Effects/lightburn.ogg", uid);
         args.Handled = true;
     }
 
@@ -97,8 +106,8 @@ public sealed class DispelPowerSystem : EntitySystem
 
     private void OnGuardianDispelled(EntityUid uid, GuardianComponent guardian, DispelledEvent args)
     {
-        if (TryComp<GuardianHostComponent>(guardian.Host, out var host))
-            _guardianSystem.ToggleGuardian(guardian.Host, host);
+        if (guardian.Host != null && TryComp<GuardianHostComponent>(guardian.Host, out var host))
+            _guardianSystem.ToggleGuardian(guardian.Host.Value, host);
 
         DealDispelDamage(uid);
         args.Handled = true;
@@ -125,7 +134,7 @@ public sealed class DispelPowerSystem : EntitySystem
             return;
 
         _popupSystem.PopupCoordinates(Loc.GetString("psionic-burn-resist", ("item", uid)), Transform(uid).Coordinates, Filter.Pvs(uid), true, Shared.Popups.PopupType.SmallCaution);
-        _audioSystem.Play("/Audio/Effects/lightburn.ogg", Filter.Pvs(uid), uid, true);
+        _audioSystem.PlayPvs("/Audio/Effects/lightburn.ogg", uid);
 
         if (damage == null)
         {

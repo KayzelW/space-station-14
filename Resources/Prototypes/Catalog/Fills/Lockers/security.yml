@@ -7,9 +7,6 @@
     contents:
       - id: FlashlightSeclite
       - id: WeaponDisabler
-        prob: 0.3
-      - id: ClothingHeadHatWarden
-      - id: ClothingHeadHatBeretWarden
       - id: ClothingBeltSecurityFilled
       - id: Flash
       - id: ClothingEyesGlassesSecurity
@@ -69,6 +66,7 @@
       - id: Eftpos # backmen
       - id: FlashlightSeclite
         prob: 0.8
+      - id: WeaponDisabler
       - id: ClothingUniformJumpsuitSecGrey
         prob: 0.3
       - id: ClothingHeadHelmetBasic
@@ -89,7 +87,10 @@
         amount: 3
       - id: ClothingHeadCage # backmen
         amount: 2
+      - id: HoloprojectorSecurity
+        prob: 0.6
 
+# backmen brigmedic's locker reworked
 - type: entity
   id: LockerBrigmedicFilled
   suffix: Brigmedic, Filled
@@ -97,7 +98,7 @@
   components:
   - type: StorageFill
     contents:
-      - id: ClothingEyesHudSecurity
+      - id: ClothingEyesGlassesSecurity
       - id: WeaponDisabler
       - id: TrackingImplanter
         amount: 2
@@ -111,28 +112,18 @@
         prob: 0.1
       - id: MedkitFilled
       - id: MedkitCombatFilled
-        prob: 0.6
       - id: MedkitAdvancedFilled
-        prob: 0.4
       - id: MedkitOxygenFilled
-        prob: 0.3
+        prob: 0.4
       - id: MedkitBruteFilled
-        prob: 0.3
+        prob: 0.4
       - id: MedkitToxinFilled
-        prob: 0.3
+        prob: 0.4
       - id: MedkitBurnFilled
-        prob: 0.7
-      - id: ClothingNeckCloakMoth #bzzz Moth-pocalypse
-        prob: 0.15
-      - id: ClothingHeadHelmetSecurityMedic # Corvax-Resprite
-      - id: ClothingOuterVestSecurityMedic # Corvax-Resprite
-        prob: 0.5
-      - id: ClothingOuterCoatLabSecurityMedic # Corvax-Resprite
-        prob: 0.5
+        prob: 0.4
       - id: AntiPsychicKnife # backmen
-        amount: 3
       - id: ClothingHeadCage # backmen
-        amount: 2
+      - id: ClothingHeadsetAltBrigmedic # backmen
 
 - type: entity
   id: LockerDetectiveFilled
@@ -141,7 +132,7 @@
   components:
   - type: StorageFill
     contents:
-      - id: ClothingEyesHudSecurity
+      - id: ClothingEyesGlassesSecurity
         prob: 0.3
       - id: ClothingHeadHatFedoraBrown
       - id: ClothingNeckTieDet
@@ -149,6 +140,7 @@
       - id: ClothingOuterCoatDetective
       - id: FlashlightSeclite
       - id: ForensicScanner
+      - id: LogProbeCartridge
       - id: BoxForensicPad
       - id: DrinkDetFlask
       - id: ClothingHandsGlovesForensic
@@ -157,6 +149,9 @@
         amount: 3
       - id: ClothingHeadCage # backmen
         amount: 2
+      - id: RubberStampDetective
+      - id: HoloprojectorSecurity
+      - id: BoxEvidenceMarkers
 
 - type: entity
   id: ClosetBombFilled
@@ -196,7 +191,7 @@
   components:
   - type: StorageFill
     contents:
-    - id: WeaponPistolMk58
+    - id: WeaponPistolACP14
       amount: 4
     - id: MagazinePistol
       amount: 8
@@ -208,7 +203,7 @@
   components:
   - type: StorageFill
     contents:
-    - id: WeaponRifleLecter
+    - id: WeaponRifleAR18
       amount: 2
     - id: MagazineRifle
       amount: 4
@@ -220,7 +215,7 @@
   components:
   - type: StorageFill
     contents:
-    - id: WeaponSubMachineGunDrozd
+    - id: WeaponSubMachineGunVectorSpecial
       amount: 2
     - id: MagazinePistolSubMachineGun
       amount: 4
@@ -232,7 +227,7 @@
   components:
   - type: StorageFill
     contents:
-    - id: WeaponShotgunEnforcer
+    - id: WeaponShotgun39
       amount: 2
     - id: MagazineShotgun
       amount: 4
@@ -244,7 +239,7 @@
   components:
   - type: StorageFill
     contents:
-    - id: WeaponShotgunKammerer
+    - id: WeaponShotguntrenchgun4034
       amount: 2
     - id: MagazineShotgun
       amount: 4
@@ -257,9 +252,9 @@
   components:
   - type: StorageFill
     contents:
-    - id: WeaponSubMachineGunWt550
+    - id: WeaponSubMachineGunMP5
       amount: 2
-    - id: MagazinePistolSubMachineGun
+    - id: MagazinePistolSubMachineGunTopMounted
       amount: 4
 
 - type: entity
@@ -269,5 +264,5 @@
   components:
   - type: StorageFill
     contents:
-    - id: WeaponLaserCarbine
+    - id: WeaponEarthGovLaserRifle
       amount: 3

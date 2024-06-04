@@ -2,7 +2,7 @@
   <PropertyGroup>
     <!-- Work around https://github.com/dotnet/project-system/issues/4314 -->
     <TargetFramework>$(TargetFramework)</TargetFramework>
-    <LangVersion>11</LangVersion>
+    <LangVersion>12</LangVersion>
     <IsPackable>false</IsPackable>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <OutputPath>..\bin\Content.Client\</OutputPath>
@@ -13,8 +13,8 @@
     <Platforms>AnyCPU</Platforms>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Nett" Version="0.15.0" />
-    <PackageReference Include="JetBrains.Annotations" Version="2022.1.0" PrivateAssets="All" />
+    <PackageReference Include="Nett" />
+    <PackageReference Include="JetBrains.Annotations" PrivateAssets="All" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\RobustToolbox\Lidgren.Network\Lidgren.Network.csproj" />
@@ -24,7 +24,30 @@
     <ProjectReference Include="..\Content.Shared\Content.Shared.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="Spawners\" />
+    <Compile Update="Backmen\Reinforcement\UI\ReinforcementConsoleWindow.cs">
+      <DependentUpon>ReinforcementConsoleWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Update="Backmen\Reinforcement\UI\ReinforcementRow.cs">
+      <DependentUpon>ReinforcementRow.xaml</DependentUpon>
+    </Compile>
+    <Compile Update="Backmen\Reinforcement\UI\ActiveReinforcementRow.cs">
+      <DependentUpon>ActiveReinforcementRow.xaml</DependentUpon>
+    </Compile>
+    <Compile Update="Backmen\Economy\WageConsole\UI\WageConsoleWindow.cs">
+      <DependentUpon>WageConsoleWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Update="Backmen\Economy\WageConsole\UI\WageRow.cs">
+      <DependentUpon>WageRow.xaml</DependentUpon>
+    </Compile>
+    <Compile Update="Backmen\Economy\WageConsole\UI\EditWageRowWindow.cs">
+      <DependentUpon>EditWageRowWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Update="Backmen\Economy\WageConsole\UI\BonusWageWindow.cs">
+      <DependentUpon>BonusWageWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Update="Backmen\Ghost\Roles\UI\RollerRow.cs">
+      <DependentUpon>RollerRow.xaml</DependentUpon>
+    </Compile>
   </ItemGroup>
   <Import Project="..\RobustToolbox\MSBuild\Robust.Properties.targets" />
   <Import Project="..\RobustToolbox\MSBuild\XamlIL.targets" />

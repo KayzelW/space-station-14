@@ -1,14 +1,13 @@
-using System.Diagnostics.CodeAnalysis;
-using System.Linq;
 using Content.Server.Botany.Components;
+using Content.Server.Chemistry.Containers.EntitySystems;
 using Content.Server.Kitchen.Components;
 using Content.Server.Popups;
 using Content.Shared.Botany;
-using Content.Shared.Chemistry.EntitySystems;
 using Content.Shared.Examine;
 using Content.Shared.Hands.EntitySystems;
 using Content.Shared.Physics;
 using Content.Shared.Popups;
+using Content.Shared.Random;
 using Content.Shared.Random.Helpers;
 using Content.Shared.Slippery;
 using Content.Shared.StepTrigger.Components;
@@ -19,6 +18,8 @@ using Robust.Shared.Physics.Components;
 using Robust.Shared.Physics.Systems;
 using Robust.Shared.Prototypes;
 using Robust.Shared.Random;
+using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 
 namespace Content.Server.Botany.Systems;
 
@@ -34,6 +35,7 @@ public sealed partial class BotanySystem : EntitySystem
     [Dependency] private readonly MetaDataSystem _metaData = default!;
     [Dependency] private readonly FixtureSystem _fixtureSystem = default!;
     [Dependency] private readonly CollisionWakeSystem _colWakeSystem = default!;
+    [Dependency] private readonly RandomHelperSystem _randomHelper = default!;
 
     public override void Initialize()
     {
@@ -88,10 +90,13 @@ public sealed partial class BotanySystem : EntitySystem
         if (!TryGetSeed(component, out var seed))
             return;
 
-        var name = Loc.GetString(seed.DisplayName);
-        args.PushMarkup(Loc.GetString($"seed-component-description", ("seedName", name)));
-        args.PushMarkup(Loc.GetString($"seed-component-plant-yield-text", ("seedYield", seed.Yield)));
-        args.PushMarkup(Loc.GetString($"seed-component-plant-potency-text", ("seedPotency", seed.Potency)));
+        using (args.PushGroup(nameof(SeedComponent)))
+        {
+            var name = Loc.GetString(seed.DisplayName);
+            args.PushMarkup(Loc.GetString($"seed-component-description", ("seedName", name)));
+            args.PushMarkup(Loc.GetString($"seed-component-plant-yield-text", ("seedYield", seed.Yield)));
+            args.PushMarkup(Loc.GetString($"seed-component-plant-potency-text", ("seedPotency", seed.Potency)));
+        }
     }
 
     #region SeedPrototype prototype stuff
@@ -99,11 +104,12 @@ public sealed partial class BotanySystem : EntitySystem
     /// <summary>
     /// Spawns a new seed packet on the floor at a position, then tries to put it in the user's hands if possible.
     /// </summary>
-    public EntityUid SpawnSeedPacket(SeedData proto, EntityCoordinates coords, EntityUid user)
+    public EntityUid SpawnSeedPacket(SeedData proto, EntityCoordinates coords, EntityUid user, float? healthOverride = null)
     {
         var seed = Spawn(proto.PacketPrototype, coords);
         var seedComp = EnsureComp<SeedComponent>(seed);
         seedComp.Seed = proto;
+        seedComp.HealthOverride = healthOverride;
 
         var name = Loc.GetString(proto.Name);
         var noun = Loc.GetString(proto.Noun);
@@ -160,7 +166,7 @@ public sealed partial class BotanySystem : EntitySystem
             var product = _robustRandom.Pick(proto.ProductPrototypes);
 
             var entity = Spawn(product, position);
-            entity.RandomOffset(0.25f);
+            _randomHelper.RandomOffset(entity, 0.25f);
             products.Add(entity);
 
             var produce = EnsureComp<ProduceComponent>(entity);

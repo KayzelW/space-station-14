@@ -31,35 +31,27 @@
   - Service
   - External
   - Detective
+  - Cryogenics
   #start-backmen: currency
   minBankBalance: 400
   maxBankBalance: 600
   wageDepartment: Command
   wage: 100
   #end-backmen: currency
-
   special:
   - !type:AddImplantSpecial
     implants: [ MindShieldImplant ]
   - !type:AddComponentSpecial
     components:
       - type: CommandStaff
+      - type: NpcFactionMember
+        factions:
+          - CentralCommand
 
 - type: startingGear
   id: HoSGear
   equipment:
-    jumpsuit: ClothingUniformJumpsuitHoS
-    back: ClothingBackpackHOSFilled
-    shoes: ClothingShoesBootsJackSecFilled # Corvax-Resprite
-    outerClothing: ClothingOuterCoatHoSTrench
     eyes: ClothingEyesGlassesSecurity
-    head: ClothingHeadHatBeretHoS
     id: HoSPDA
     gloves: ClothingHandsGlovesCombat
     ears: ClothingHeadsetAltSecurity
-    belt: ClothingBeltSecurityFilled
-    pocket1: WeaponPistolMk58Nonlethal
-    pocket2: Eftpos
-  innerClothingSkirt: ClothingUniformJumpskirtHoS
-  satchel: ClothingBackpackSatchelHOSFilled
-  duffelbag: ClothingBackpackDuffelHOSFilled

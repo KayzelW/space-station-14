@@ -16,11 +16,13 @@ using Content.Shared.Damage;
 using Content.Shared.Destructible;
 using Content.Shared.Construction.Components;
 using Robust.Shared.Audio;
-using Robust.Shared.Map;
 using Robust.Shared.Random;
 using Robust.Shared.Physics.Components;
 using Robust.Shared.Utility;
 using Robust.Server.GameObjects;
+using Robust.Shared.Audio.Systems;
+using Robust.Shared.Map.Components;
+using Robust.Shared.Prototypes;
 
 namespace Content.Server.Backmen.Psionics.Glimmer
 {
@@ -39,9 +41,10 @@ namespace Content.Server.Backmen.Psionics.Glimmer
         [Dependency] private readonly SharedDestructibleSystem _destructibleSystem = default!;
         [Dependency] private readonly GhostSystem _ghostSystem = default!;
         [Dependency] private readonly RevenantSystem _revenantSystem = default!;
-        [Dependency] private readonly IMapManager _mapManager = default!;
+        [Dependency] private readonly MapSystem _mapSystem = default!;
         [Dependency] private readonly SharedTransformSystem _transformSystem = default!;
         [Dependency] private readonly SharedPointLightSystem _pointLightSystem = default!;
+
 
         public float Accumulator = 0;
         public const float UpdateFrequency = 15f;
@@ -49,9 +52,14 @@ namespace Content.Server.Backmen.Psionics.Glimmer
         public GlimmerTier LastGlimmerTier = GlimmerTier.Minimal;
         public bool GhostsVisible = false;
 
+        private ISawmill _sawmill = default!;
+
         public override void Initialize()
         {
             base.Initialize();
+
+            _sawmill = Logger.GetSawmill("glimmer.reactive");
+
             SubscribeLocalEvent<RoundRestartCleanupEvent>(Reset);
 
             SubscribeLocalEvent<SharedGlimmerReactiveComponent, MapInitEvent>(OnMapInit);
@@ -67,6 +75,9 @@ namespace Content.Server.Backmen.Psionics.Glimmer
         /// <summary>
         /// Update relevant state on an Entity.
         /// </summary>
+        /// <param name="uid"></param>
+        /// <param name="component"></param>
+        /// <param name="currentGlimmerTier"></param>
         /// <param name="glimmerTierDelta">The number of steps in tier
         /// difference since last update. This can be zero for the sake of
         /// toggling the enabled states.</param>
@@ -76,8 +87,10 @@ namespace Content.Server.Backmen.Psionics.Glimmer
             var isEnabled = true;
 
             if (component.RequiresApcPower)
+            {
                 if (TryComp(uid, out ApcPowerReceiverComponent? apcPower))
                     isEnabled = apcPower.Powered;
+            }
 
             _appearanceSystem.SetData(uid, GlimmerReactiveVisuals.GlimmerTier,
                 isEnabled ? currentGlimmerTier : GlimmerTier.Minimal);
@@ -120,11 +133,12 @@ namespace Content.Server.Backmen.Psionics.Glimmer
         private void OnMapInit(EntityUid uid, SharedGlimmerReactiveComponent component, MapInitEvent args)
         {
             if (component.RequiresApcPower && !HasComp<ApcPowerReceiverComponent>(uid))
-                Logger.Warning(
-                    $"{ToPrettyString(uid)} had RequiresApcPower set to true but no ApcPowerReceiverComponent was found on init.");
+            {
+                _sawmill.Warning($"{ToPrettyString(uid)} had RequiresApcPower set to true but no ApcPowerReceiverComponent was found on init.");
+            }
 
             if (component.ModulatesPointLight && !HasComp<PointLightComponent>(uid))
-                Logger.Warning($"{ToPrettyString(uid)} had ModulatesPointLight set to true but no PointLightComponent was found on init.");
+                _sawmill.Warning($"{ToPrettyString(uid)} had ModulatesPointLight set to true but no PointLightComponent was found on init.");
 
             UpdateEntityState(uid, component, LastGlimmerTier, (int) LastGlimmerTier);
         }
@@ -214,21 +228,22 @@ namespace Content.Server.Backmen.Psionics.Glimmer
             Beam(uid, args.Origin.Value, tier);
         }
 
+        [ValidatePrototypeId<EntityPrototype>] private const string MaterialBluespace = "MaterialBluespace1";
         private void OnDestroyed(EntityUid uid, SharedGlimmerReactiveComponent component, DestructionEventArgs args)
         {
-            Spawn("MaterialBluespace1", Transform(uid).Coordinates);
+            Spawn(MaterialBluespace, Transform(uid).Coordinates);
 
             var tier = _glimmerSystem.GetGlimmerTier();
             if (tier < GlimmerTier.High)
                 return;
 
             var totalIntensity = (float) (_glimmerSystem.Glimmer * 2);
-            var slope = (float) (11 - _glimmerSystem.Glimmer / 100);
+            var slope = 11 - _glimmerSystem.Glimmer / 100f;
             var maxIntensity = 20;
 
             var removed = (float) _glimmerSystem.Glimmer * _random.NextFloat(0.1f, 0.15f);
             _glimmerSystem.Glimmer -= (int) removed;
-            BeamRandomNearProber(uid, _glimmerSystem.Glimmer / 350, _glimmerSystem.Glimmer / 50);
+            BeamRandomNearProber(uid, _glimmerSystem.Glimmer / 350, _glimmerSystem.Glimmer / 50f);
             _explosionSystem.QueueExplosion(uid, "Default", totalIntensity, slope, maxIntensity);
         }
 
@@ -244,24 +259,33 @@ namespace Content.Server.Backmen.Psionics.Glimmer
             }
         }
 
+        [ValidatePrototypeId<StatusEffectPrototype>]
+        private const string Electrocution = "Electrocution";
+
+        private readonly HashSet<Entity<IComponent>> _entitySet = new();
+        private readonly List<EntityUid> _entities = new();
         public void BeamRandomNearProber(EntityUid prober, int targets, float range = 10f)
         {
-            List<EntityUid> targetList = new();
-            foreach (var target in _entityLookupSystem.GetComponentsInRange<StatusEffectsComponent>(
-                         Transform(prober).Coordinates, range))
+            var pos = Transform(prober).Coordinates.ToMap(EntityManager,_transformSystem);
+            _entitySet.Clear();
+            _entityLookupSystem.GetEntitiesInRange(typeof(StatusEffectsComponent),pos.MapId,pos.Position, range, _entitySet);
+            _entityLookupSystem.GetEntitiesInRange(typeof(SharedGlimmerReactiveComponent),pos.MapId,pos.Position, range, _entitySet);
+            _entities.Clear();
+
+            foreach (var target in _entitySet)
             {
-                if (target.AllowedEffects.Contains("Electrocution"))
-                    targetList.Add(target.Owner);
+                if (target.Comp is StatusEffectsComponent comp)
+                {
+                    if (!comp.AllowedEffects.Contains(Electrocution))
+                    {
+                        continue;
+                    }
+                }
+                _entities.Add(target);
             }
 
-            foreach (var reactive in _entityLookupSystem.GetComponentsInRange<SharedGlimmerReactiveComponent>(
-                         Transform(prober).Coordinates, range))
-            {
-                targetList.Add(reactive.Owner);
-            }
-
-            _random.Shuffle(targetList);
-            foreach (var target in targetList)
+            _random.Shuffle(_entities);
+            foreach (var target in _entities)
             {
                 if (targets <= 0)
                     return;
@@ -271,37 +295,36 @@ namespace Content.Server.Backmen.Psionics.Glimmer
             }
         }
 
-        private void Beam(EntityUid prober, EntityUid target, GlimmerTier tier, bool obeyCD = true)
+        [ValidatePrototypeId<EntityPrototype>]
+        private const string SuperchargedLightning = "SuperchargedLightning";
+        [ValidatePrototypeId<EntityPrototype>]
+        private const string HyperchargedLightning = "HyperchargedLightning";
+        [ValidatePrototypeId<EntityPrototype>]
+        private const string ChargedLightning = "ChargedLightning";
+
+        private void Beam(EntityUid prober, EntityUid target, GlimmerTier tier, bool obeyCd = true)
         {
-            if (obeyCD && BeamCooldown != 0)
+            if (obeyCd && BeamCooldown != 0)
                 return;
 
-            if (Deleted(prober) || Deleted(target))
+            if (TerminatingOrDeleted(prober) || TerminatingOrDeleted(target))
                 return;
 
-            var lxform = Transform(prober);
-            var txform = Transform(target);
+            var lxform = Transform(prober).Coordinates;
+            var txform = Transform(target).Coordinates;
 
-            if (!lxform.Coordinates.TryDistance(EntityManager, txform.Coordinates, out var distance))
-                return;
-            if (distance > (float) (_glimmerSystem.Glimmer / 100))
+            if (!lxform.TryDistance(EntityManager, txform, out var distance))
                 return;
 
-            string beamproto;
+            if (distance > (_glimmerSystem.Glimmer / 100f))
+                return;
 
-            switch (tier)
+            var beamproto = tier switch
             {
-                case GlimmerTier.Dangerous:
-                    beamproto = "SuperchargedLightning";
-                    break;
-                case GlimmerTier.Critical:
-                    beamproto = "HyperchargedLightning";
-                    break;
-                default:
-                    beamproto = "ChargedLightning";
-                    break;
-            }
-
+                GlimmerTier.Dangerous => SuperchargedLightning,
+                GlimmerTier.Critical => HyperchargedLightning,
+                _ => ChargedLightning
+            };
 
             _lightning.ShootLightning(prober, target, beamproto);
             BeamCooldown += 3f;
@@ -319,9 +342,9 @@ namespace Content.Server.Backmen.Psionics.Glimmer
             var coordinates = xform.Coordinates;
             var gridUid = xform.GridUid;
 
-            if (_mapManager.TryGetGrid(gridUid, out var grid))
+            if (TryComp<MapGridComponent>(gridUid, out var grid))
             {
-                var tileIndices = grid.TileIndicesFor(coordinates);
+                var tileIndices = _mapSystem.TileIndicesFor(gridUid.Value, grid, coordinates);
 
                 if (_anchorableSystem.TileFree(grid, tileIndices, physics.CollisionLayer, physics.CollisionMask) &&
                     _transformSystem.AnchorEntity(uid, xform))
@@ -356,16 +379,17 @@ namespace Content.Server.Backmen.Psionics.Glimmer
             {
                 var currentGlimmerTier = _glimmerSystem.GetGlimmerTier();
 
-                var reactives = EntityQuery<SharedGlimmerReactiveComponent>();
+
                 if (currentGlimmerTier != LastGlimmerTier)
                 {
                     var glimmerTierDelta = (int) currentGlimmerTier - (int) LastGlimmerTier;
                     var ev = new GlimmerTierChangedEvent(LastGlimmerTier, currentGlimmerTier, glimmerTierDelta);
 
-                    foreach (var reactive in reactives)
+                    var reactives = EntityQueryEnumerator<SharedGlimmerReactiveComponent>();
+                    while (reactives.MoveNext(out var owner, out var reactive))
                     {
-                        UpdateEntityState(reactive.Owner, reactive, currentGlimmerTier, glimmerTierDelta);
-                        RaiseLocalEvent(reactive.Owner, ev);
+                        UpdateEntityState(owner, reactive, currentGlimmerTier, glimmerTierDelta);
+                        RaiseLocalEvent(owner, ev);
                     }
 
                     LastGlimmerTier = currentGlimmerTier;
@@ -376,9 +400,10 @@ namespace Content.Server.Backmen.Psionics.Glimmer
                     _ghostSystem.MakeVisible(true);
                     _revenantSystem.MakeVisible(true);
                     GhostsVisible = true;
-                    foreach (var reactive in reactives)
+                    var reactives = EntityQueryEnumerator<SharedGlimmerReactiveComponent>();
+                    while (reactives.MoveNext(out var owner, out _))
                     {
-                        BeamRandomNearProber(reactive.Owner, 1, 12);
+                        BeamRandomNearProber(owner, 1, 12);
                     }
                 }
                 else if (GhostsVisible == true)
@@ -400,7 +425,7 @@ namespace Content.Server.Backmen.Psionics.Glimmer
     /// <see cref="GlimmerSystem.GetGlimmerTier"/> has the exact
     /// values corresponding to tiers.
     /// </summary>
-    public class GlimmerTierChangedEvent : EntityEventArgs
+    public sealed class GlimmerTierChangedEvent : EntityEventArgs
     {
         /// <summary>
         /// What was the last glimmer tier before this event fired?

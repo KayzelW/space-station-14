@@ -29,6 +29,8 @@
   - Maintenance
   - Chemistry
   - ChiefMedicalOfficer
+  - Brig
+  - Cryogenics
   #start-backmen: currency
   minBankBalance: 400
   maxBankBalance: 600
@@ -40,6 +42,9 @@
     components:
       - type: PsionicBonusChance
         flatBonus: 0.025
+      - type: NpcFactionMember
+        factions:
+          - CentralCommand
   - !type:AddImplantSpecial
     implants: [ MindShieldImplant ]
   - !type:AddComponentSpecial
@@ -49,13 +54,6 @@
 - type: startingGear
   id: CMOGear
   equipment:
-    jumpsuit: ClothingUniformJumpsuitCMO
-    back: ClothingBackpackCMOFilled
-    shoes: ClothingShoesColorBrown
-    outerClothing: ClothingOuterCoatLabCmo
     id: CMOPDA
     ears: ClothingHeadsetCMO
     belt: ClothingBeltMedicalFilled
-  innerClothingSkirt: ClothingUniformJumpskirtCMO
-  satchel: ClothingBackpackSatchelCMOFilled
-  duffelbag: ClothingBackpackDuffelCMOFilled

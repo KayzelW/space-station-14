@@ -1,10 +1,11 @@
 using System.Numerics;
+using Content.Shared.Administration.Managers;
 using Content.Shared.Database;
 using Content.Shared.Follower.Components;
 using Content.Shared.Ghost;
 using Content.Shared.Hands;
 using Content.Shared.Movement.Events;
-using Content.Shared.Physics.Pull;
+using Content.Shared.Movement.Pulling.Events;
 using Content.Shared.Tag;
 using Content.Shared.Verbs;
 using Robust.Shared.Containers;
@@ -15,6 +16,7 @@ using Robust.Shared.Network;
 using Robust.Shared.Physics;
 using Robust.Shared.Physics.Systems;
 using Robust.Shared.Serialization;
+using Robust.Shared.Player;
 using Robust.Shared.Utility;
 
 namespace Content.Shared.Follower;
@@ -27,6 +29,7 @@ public sealed class FollowerSystem : EntitySystem
     [Dependency] private readonly SharedJointSystem _jointSystem = default!;
     [Dependency] private readonly SharedPhysicsSystem _physicsSystem = default!;
     [Dependency] private readonly INetManager _netMan = default!;
+    [Dependency] private readonly ISharedAdminManager _adminManager = default!;
 
     public override void Initialize()
     {
@@ -124,7 +127,8 @@ public sealed class FollowerSystem : EntitySystem
 
     private void OnFollowerMove(EntityUid uid, FollowerComponent component, ref MoveInputEvent args)
     {
-        StopFollowingEntity(uid, component.Following);
+        if (args.HasDirectionalMovement)
+            StopFollowingEntity(uid, component.Following);
     }
 
     private void OnPullStarted(EntityUid uid, FollowerComponent component, PullStartedMessage args)
@@ -179,7 +183,7 @@ public sealed class FollowerSystem : EntitySystem
         {
             followerComp = AddComp<FollowerComponent>(follower);
         }
-        
+
         followerComp.Following = entity;
 
         var followedComp = EnsureComp<FollowedComponent>(entity);
@@ -190,16 +194,16 @@ public sealed class FollowerSystem : EntitySystem
         if (TryComp<JointComponent>(follower, out var joints))
             _jointSystem.ClearJoints(follower, joints);
 
-        _physicsSystem.SetLinearVelocity(follower, Vector2.Zero);
-
         var xform = Transform(follower);
-        _containerSystem.AttachParentToContainerOrGrid(xform);
+        _containerSystem.AttachParentToContainerOrGrid((follower, xform));
 
         // If we didn't get to parent's container.
         if (xform.ParentUid != Transform(xform.ParentUid).ParentUid)
         {
             _transform.SetCoordinates(follower, xform, new EntityCoordinates(entity, Vector2.Zero), rotation: Angle.Zero);
         }
+
+        _physicsSystem.SetLinearVelocity(follower, Vector2.Zero);
 
         EnsureComp<OrbitVisualsComponent>(follower);
 
@@ -272,6 +276,40 @@ public sealed class FollowerSystem : EntitySystem
         {
             StopFollowingEntity(player, uid, followed);
         }
+    }
+
+    /// <summary>
+    /// Gets the entity with the most non-admin ghosts following it.
+    /// </summary>
+    public EntityUid? GetMostGhostFollowed()
+    {
+        EntityUid? picked = null;
+        var most = 0;
+
+        // Keep a tally of how many ghosts are following each entity
+        var followedEnts = new Dictionary<EntityUid, int>();
+
+        // Look for followers that are ghosts and are player controlled
+        var query = EntityQueryEnumerator<FollowerComponent, GhostComponent, ActorComponent>();
+        while (query.MoveNext(out _, out var follower, out _, out var actor))
+        {
+            // Exclude admins
+            if (_adminManager.IsAdmin(actor.PlayerSession))
+                continue;
+
+            var followed = follower.Following;
+            // Add new entry or increment existing
+            followedEnts.TryGetValue(followed, out var currentValue);
+            followedEnts[followed] = currentValue + 1;
+
+            if (followedEnts[followed] > most)
+            {
+                picked = followed;
+                most = followedEnts[followed];
+            }
+        }
+
+        return picked;
     }
 }
 

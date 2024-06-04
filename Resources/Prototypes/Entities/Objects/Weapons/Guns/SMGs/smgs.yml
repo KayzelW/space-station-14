@@ -7,7 +7,7 @@
   components:
   - type: Sprite
   - type: Item
-    size: 30
+    size: Large
   - type: Clothing
     sprite: Objects/Weapons/Guns/SMGs/atreides.rsi
     quickEquip: false
@@ -60,6 +60,7 @@
   parent: BaseWeaponSubMachineGun
   id: WeaponSubMachineGunAtreides
   description: Pla-ket-ket-ket-ket! Uses .35 auto ammo.
+  noSpawn: true
   components:
   - type: Sprite
     sprite: Objects/Weapons/Guns/SMGs/atreides.rsi
@@ -83,6 +84,7 @@
   parent: BaseWeaponSubMachineGun
   id: WeaponSubMachineGunC20r
   description: A firearm that is often used by the infamous nuclear operatives. Uses .35 auto ammo.
+  noSpawn: true
   components:
   - type: Sprite
     sprite: Objects/Weapons/Guns/SMGs/c20r.rsi
@@ -93,7 +95,18 @@
       map: ["enum.GunVisualLayers.Mag"]
   - type: Clothing
     sprite: Objects/Weapons/Guns/SMGs/c20r.rsi
+  - type: Wieldable
+  - type: GunWieldBonus
+    minAngle: -19
+    maxAngle: -16
   - type: Gun
+    minAngle: 21
+    maxAngle: 32 
+    shotsPerBurst: 5
+    availableModes:
+    - SemiAuto
+    - Burst
+    - FullAuto
     soundGunshot:
       path: /Audio/Weapons/Guns/Gunshots/c-20r.ogg
   - type: ChamberMagazineAmmoProvider
@@ -109,6 +122,7 @@
   parent: BaseWeaponSubMachineGun
   id: WeaponSubMachineGunDrozd
   description: An excellent fully automatic Heavy SMG.
+  noSpawn: true
   components:
     - type: Sprite
       sprite: Objects/Weapons/Guns/SMGs/drozd.rsi
@@ -119,7 +133,13 @@
           map: ["enum.GunVisualLayers.Mag"]
     - type: Clothing
       sprite: Objects/Weapons/Guns/SMGs/drozd.rsi
+    - type: Wieldable
+    - type: GunWieldBonus
+      minAngle: -19
+      maxAngle: -16
     - type: Gun
+      minAngle: 21
+      maxAngle: 32
       fireRate: 6
       selectedMode: FullAuto
       soundGunshot:
@@ -156,6 +176,7 @@
   id: WeaponSubMachineGunVector
   suffix: Deprecated use Drozd
   description: An excellent fully automatic Heavy SMG. Uses .45 magnum ammo.
+  noSpawn: true
   components:
   - type: Sprite
     sprite: Objects/Weapons/Guns/SMGs/vector.rsi
@@ -202,6 +223,7 @@
   parent: BaseWeaponSubMachineGun
   id: WeaponSubMachineGunWt550
   description: An excellent SMG, produced by NanoTrasen's Small Arms Division. Uses .35 auto ammo.
+  noSpawn: true
   components:
   - type: Sprite
     sprite: Objects/Weapons/Guns/SMGs/wt550.rsi
@@ -221,9 +243,16 @@
   - type: ChamberMagazineAmmoProvider
     boltClosed: null
   - type: Gun
-    fireRate: 5
+    fireRate: 5.5
+    minAngle: 1
+    maxAngle: 6
+    angleIncrease: 1.5
+    angleDecay: 6
     selectedMode: FullAuto
+    shotsPerBurst: 5
     availableModes:
+    - SemiAuto
+    - Burst
     - FullAuto
   - type: ItemSlots
     slots:
@@ -254,13 +283,14 @@
   name: Drozd
   parent: WeaponSubMachineGunDrozd
   id: WeaponSubMachineGunDrozdRubber
+  noSpawn: true
   suffix: Non-Lethal
   components:
     - type: ItemSlots
       slots:
         gun_magazine:
           name: Magazine
-          startingItem: MagazinePistolSubMachineGunRubber
+          startingItem: MagazinePistolSubMachineGun
           insertSound: /Audio/Weapons/Guns/MagIn/smg_magin.ogg
           ejectSound: /Audio/Weapons/Guns/MagOut/smg_magout.ogg
           priority: 2
@@ -269,7 +299,7 @@
               - MagazinePistolSubMachineGun
         gun_chamber:
           name: Chamber
-          startingItem: CartridgePistolRubber
+          startingItem: CartridgePistol
           priority: 1
           whitelist:
             tags:
@@ -280,13 +310,14 @@
   parent: WeaponSubMachineGunVector
   id: WeaponSubMachineGunVectorRubber
   description: An excellent fully automatic Heavy SMG. Uses .45 magnum ammo.
+  noSpawn: true
   suffix: Non-Lethal
   components:
   - type: ItemSlots
     slots:
       gun_magazine:
         name: Magazine
-        startingItem: MagazineMagnumSubMachineGunRubber
+        startingItem: MagazineMagnumSubMachineGun
         insertSound: /Audio/Weapons/Guns/MagIn/smg_magin.ogg
         ejectSound: /Audio/Weapons/Guns/MagOut/smg_magout.ogg
         priority: 2
@@ -295,7 +326,7 @@
             - MagazineMagnumSubMachineGun
       gun_chamber:
         name: Chamber
-        startingItem: CartridgeMagnumRubber
+        startingItem: CartridgeMagnum
         priority: 1
         whitelist:
           tags:

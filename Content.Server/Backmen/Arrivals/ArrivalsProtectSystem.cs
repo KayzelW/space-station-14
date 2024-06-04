@@ -1,6 +1,6 @@
+using Content.Server.Administration.Managers;
 using Content.Server.Damage.Systems;
 using Content.Server.Shuttles.Components;
-using Content.Shared.Tools;
 using JetBrains.Annotations;
 using Robust.Shared.Map;
 using Content.Shared.Tag;
@@ -14,17 +14,19 @@ using Content.Server.Light.Components;
 using Content.Server.StationEvents.Components;
 using Content.Shared.SubFloor;
 using Content.Server.SurveillanceCamera;
-using Content.Server.Atmos.Components;
 using Content.Server.Atmos.Piping.Binary.Components;
 using Content.Server.Atmos.Piping.Trinary.Components;
 using Content.Server.Construction;
 using Content.Server.Emp;
 using Content.Server.Gravity;
 using Content.Server.Power.EntitySystems;
-using Content.Shared.Damage;
-using Content.Shared.Damage.Components;
+using Content.Shared.Backmen.Arrivals;
+using Content.Shared.Construction.Components;
+using Content.Shared.Construction.EntitySystems;
 using Content.Shared.DeviceLinking.Events;
-using Content.Shared.Tiles;
+using Content.Shared.DoAfter;
+using Content.Shared.Prying.Components;
+using Content.Shared.Tools.Components;
 using Content.Shared.Tools.Systems;
 
 namespace Content.Server.Backmen.Arrivals;
@@ -35,12 +37,10 @@ public sealed partial class ArrivalsProtectComponent : Component
 
 }
 
-
-[UsedImplicitly]
-public sealed class ArrivalsProtectSystem : EntitySystem
+public sealed class ArrivalsProtectSystem : SharedArrivalsProtectSystem
 {
     [Dependency] private readonly GodmodeSystem _godmodeSystem = default!;
-    [Dependency] private readonly SharedToolSystem _toolSystem = default!;
+    [Dependency] private readonly IAdminManager _adminManager = default!;
     [Dependency] private readonly TagSystem _tagSystem = default!;
     [Dependency] private readonly IMapManager _mapManager = default!;
     [Dependency] private readonly ApcSystem _apcSystem = default!;
@@ -60,10 +60,15 @@ public sealed class ArrivalsProtectSystem : EntitySystem
         SubscribeLocalEvent<ArrivalsProtectComponent, InteractUsingEvent>(OnInteractUsing, before: new []{typeof(DoorSystem), typeof(WiresSystem), typeof(CableSystem)});
         SubscribeLocalEvent<ArrivalsProtectComponent, WeldableAttemptEvent>(OnWeldAttempt, before: new []{typeof(DoorSystem), typeof(WiresSystem)});
         SubscribeLocalEvent<ArrivalsProtectComponent, ApcToggleMainBreakerAttemptEvent>(OnToggleApc, before: new[]{ typeof(EmpSystem)});
+        SubscribeLocalEvent<ArrivalsProtectComponent, BeforePryEvent>(OnTryPry);
 
         SubscribeLocalEvent<BuildAttemptEvent>(OnBuildAttemptEvent);
-
         SubscribeLocalEvent<ArrivalsProtectComponent, LinkAttemptEvent>(OnLinkAttempt);
+    }
+
+    private void OnTryPry(Entity<ArrivalsProtectComponent> ent, ref BeforePryEvent args)
+    {
+        args.Cancelled = true;
     }
 
     private void OnLinkAttempt(EntityUid uid, ArrivalsProtectComponent component, LinkAttemptEvent args)
@@ -96,7 +101,7 @@ public sealed class ArrivalsProtectSystem : EntitySystem
             return;
         }
 
-        if (HasComp<ProtectedGridComponent>(grid.Value))
+        if (HasComp<ArrivalsProtectGridComponent>(grid.Value))
         {
             ev.Cancel();
         }
@@ -104,9 +109,9 @@ public sealed class ArrivalsProtectSystem : EntitySystem
 
     private void OnStartup(EntityUid uid, ArrivalsProtectComponent component, ComponentStartup args)
     {
-        EnsureComp<GodmodeComponent>(uid);
-        RemCompDeferred<DamageableComponent>(uid);
-        RemCompDeferred<MovedByPressureComponent>(uid);
+        //EnsureComp<GodmodeComponent>(uid);
+        //RemCompDeferred<DamageableComponent>(uid);
+        //RemCompDeferred<MovedByPressureComponent>(uid);
         ProcessGodmode(uid);
     }
 
@@ -155,6 +160,8 @@ public sealed class ArrivalsProtectSystem : EntitySystem
             return;
         }
 
+        EnsureComp<ArrivalsProtectGridComponent>(grid);
+
         var transformQuery = GetEntityQuery<TransformComponent>();
 
         RecursiveGodmode(transformQuery, grid);
@@ -165,17 +172,15 @@ public sealed class ArrivalsProtectSystem : EntitySystem
         if (TryComp<GasMixerComponent>(uid, out var gasMinerComponent))
         {
             (gasMinerComponent as dynamic).Enabled = true;
-            Dirty(gasMinerComponent);
         }
         if (TryComp<GasPressurePumpComponent>(uid, out var gasPressurePumpComponent))
         {
             gasPressurePumpComponent.Enabled = true;
-            Dirty(gasPressurePumpComponent);
         }
 
         if(TryComp<DoorComponent>(uid, out var doorComp))
         {
-            doorComp.PryingQuality = "None";
+            //doorComp.PryingQuality = "None";
             EnsureComp<ArrivalsProtectComponent>(uid);
 
             if(HasComp<AirlockComponent>(uid))
@@ -220,7 +225,7 @@ public sealed class ArrivalsProtectSystem : EntitySystem
         var enumerator = transformQuery.GetComponent(uid).ChildEnumerator;
         while (enumerator.MoveNext(out var child))
         {
-            RecursiveGodmode(transformQuery, child.Value);
+            RecursiveGodmode(transformQuery, child);
         }
     }
 

@@ -3,6 +3,7 @@ using Content.Server.Atmos.Components;
 using Content.Server.Atmos.EntitySystems;
 using Content.Server.Popups;
 using Content.Shared.Backmen.Abilities.Psionics;
+using Content.Shared.Backmen.Psionics;
 using Content.Shared.Backmen.Psionics.Events;
 using Robust.Shared.Prototypes;
 using Robust.Shared.Timing;
@@ -11,7 +12,6 @@ namespace Content.Server.Backmen.Abilities.Psionics;
 
 public sealed class PyrokinesisPowerSystem : EntitySystem
 {
-    [Dependency] private readonly IPrototypeManager _prototypeManager = default!;
     [Dependency] private readonly SharedActionsSystem _actions = default!;
     [Dependency] private readonly FlammableSystem _flammableSystem = default!;
     [Dependency] private readonly SharedPsionicAbilitiesSystem _psionics = default!;
@@ -47,6 +47,13 @@ public sealed class PyrokinesisPowerSystem : EntitySystem
 
     private void OnPowerUsed(PyrokinesisPowerActionEvent args)
     {
+        if (HasComp<PsionicallyInvisibleComponent>(args.Performer))
+        {
+            _popupSystem.PopupCursor(Loc.GetString("cant-use-in-invisible"),args.Performer);
+            return;
+        }
+        if (HasComp<PsionicInsulationComponent>(args.Target))
+            return;
         if (!TryComp<FlammableComponent>(args.Target, out var flammableComponent))
             return;
 

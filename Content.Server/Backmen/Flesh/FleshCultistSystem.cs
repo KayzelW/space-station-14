@@ -3,7 +3,7 @@ using Content.Server.Actions;
 using Content.Server.Atmos.Components;
 using Content.Server.Body.Components;
 using Content.Server.Body.Systems;
-using Content.Server.Chemistry.EntitySystems;
+using Content.Server.Chemistry.Containers.EntitySystems;
 using Content.Server.Flash.Components;
 using Content.Server.Fluids.EntitySystems;
 using Content.Server.Forensics;
@@ -25,6 +25,7 @@ using Content.Shared.Electrocution;
 using Content.Shared.FixedPoint;
 using Content.Shared.Backmen.Flesh;
 using Content.Shared.Chemistry.EntitySystems;
+using Content.Shared.Cloning;
 using Content.Shared.Fluids.Components;
 using Content.Shared.Hands.Components;
 using Content.Shared.Humanoid;
@@ -35,9 +36,11 @@ using Content.Shared.Mind.Components;
 using Content.Shared.Mobs;
 using Content.Shared.Mobs.Components;
 using Content.Shared.Popups;
-using Content.Shared.Random.Helpers;
+using Content.Shared.Random;
+using Content.Shared.Store.Components;
 using Content.Shared.Tag;
 using Robust.Shared.Audio;
+using Robust.Shared.Audio.Systems;
 using Robust.Shared.Collections;
 using Robust.Shared.Containers;
 using Robust.Shared.Physics;
@@ -59,7 +62,7 @@ public sealed partial class FleshCultistSystem : EntitySystem
     [Dependency] private readonly SharedAudioSystem _audio = default!;
     [Dependency] private readonly PuddleSystem _puddleSystem = default!;
     [Dependency] private readonly EntityLookupSystem _lookup = default!;
-    [Dependency] private readonly SolutionContainerSystem _solutionSystem = default!;
+    [Dependency] private readonly SharedSolutionContainerSystem _solutionSystem = default!;
     [Dependency] private readonly HumanoidAppearanceSystem _sharedHuApp = default!;
     [Dependency] private readonly SharedAppearanceSystem _sharedAppearance = default!;
     [Dependency] private readonly DamageableSystem _damageableSystem = default!;
@@ -68,13 +71,17 @@ public sealed partial class FleshCultistSystem : EntitySystem
     [Dependency] private readonly BloodstreamSystem _bloodstreamSystem = default!;
     [Dependency] private readonly GunSystem _gunSystem = default!;
     [Dependency] private readonly TagSystem _tagSystem = default!;
+    [Dependency] private readonly RandomHelperSystem _randomHelper = default!;
+    [Dependency] private readonly IPrototypeManager _prototype = default!;
+    [Dependency] private readonly SharedTransformSystem _transformSystem = default!;
+    [Dependency] private readonly SharedContainerSystem _container = default!;
 
 
     public override void Initialize()
     {
         base.Initialize();
 
-        SubscribeLocalEvent<FleshCultistComponent, ComponentStartup>(OnStartup);
+        SubscribeLocalEvent<FleshCultistComponent, MapInitEvent>(OnStartup);
         SubscribeLocalEvent<FleshCultistComponent, FleshCultistShopActionEvent>(OnShop);
         SubscribeLocalEvent<FleshCultistComponent, FleshCultistInsulatedImmunityMutationEvent>(OnInsulatedImmunityMutation);
         SubscribeLocalEvent<FleshCultistComponent, FleshCultistPressureImmunityMutationEvent>(OnPressureImmunityMutation);
@@ -85,8 +92,23 @@ public sealed partial class FleshCultistSystem : EntitySystem
         SubscribeLocalEvent<FleshCultistComponent, IsEquippingAttemptEvent>(OnBeingEquippedAttempt);
         SubscribeLocalEvent<FleshCultistComponent, MobStateChangedEvent>(OnMobStateChanged);
         SubscribeLocalEvent<FleshCultistComponent, FleshCultistAbsorbBloodPoolActionEvent>(OnAbsormBloodPoolActionEvent);
+        SubscribeLocalEvent<FleshCultistComponent, CloningEvent>(OnCultistCloning);
 
         InitializeAbilities();
+    }
+
+    private void OnCultistCloning(EntityUid uid, FleshCultistComponent component, ref CloningEvent args)
+    {
+        // If the cultist ate the body we need to visually reset it after cloning
+        if (!TryComp<HumanoidAppearanceComponent>(args.Target, out var huAppComponent))
+            return;
+
+        var speciesProto = _prototype.Index(huAppComponent.Species);
+        var skeletonSprites = _prototype.Index<HumanoidSpeciesBaseSpritesPrototype>(speciesProto.SpriteSet);
+        foreach (var (key, id) in skeletonSprites.Sprites)
+        {
+            _sharedHuApp.SetBaseLayerId(args.Target, key, id, humanoid: huAppComponent);
+        }
     }
 
     private void OnMobStateChanged(EntityUid uid, FleshCultistComponent component, MobStateChangedEvent args)
@@ -186,7 +208,7 @@ public sealed partial class FleshCultistSystem : EntitySystem
     [ValidatePrototypeId<EntityPrototype>] private const string FleshCultistDevour = "FleshCultistDevour";
     [ValidatePrototypeId<EntityPrototype>] private const string FleshCultistAbsorbBloodPool = "FleshCultistAbsorbBloodPool";
 
-    private void OnStartup(EntityUid uid, FleshCultistComponent component, ComponentStartup args)
+    private void OnStartup(EntityUid uid, FleshCultistComponent component, MapInitEvent args)
     {
         EnsureComp<StoreComponent>(uid);
         //update the icon
@@ -194,8 +216,7 @@ public sealed partial class FleshCultistSystem : EntitySystem
 
 
 
-        _store.TryAddCurrency(new Dictionary<string, FixedPoint2>
-            { {component.StolenCurrencyPrototype, component.StartingEvolutionPoint} }, uid);
+        _store.TryAddCurrency(new Dictionary<string, FixedPoint2> { {component.StolenCurrencyPrototype, component.StartingEvolutionPoint} }, uid);
 
 
         _action.AddAction(uid, ref component.FleshCultistShop, FleshCultistShop);
@@ -238,19 +259,20 @@ public sealed partial class FleshCultistSystem : EntitySystem
         _store.ToggleUi(uid, uid, store);
     }
 
-    private bool ChangeParasiteHunger(EntityUid uid, FixedPoint2 amount, FleshCultistComponent? component = null)
+    [ValidatePrototypeId<AlertPrototype>]
+    private const string MutationPoint = "MutationPoint";
+
+    private void ChangeParasiteHunger(EntityUid uid, FixedPoint2 amount, FleshCultistComponent? component = null)
     {
         if (!Resolve(uid, ref component))
-            return false;
+            return;
 
         component.Hunger += amount;
 
         if (TryComp<StoreComponent>(uid, out var store))
             _store.UpdateUserInterface(uid, uid, store);
 
-        _alerts.ShowAlert(uid, AlertType.MutationPoint, (short) Math.Clamp(Math.Round(component.Hunger.Float() / 10f), 0, 16));
-
-        return true;
+        _alerts.ShowAlert(uid, MutationPoint, (short) Math.Clamp(Math.Round(component.Hunger.Float() / 10f), 0, 16));
     }
 
     private void OnDevourAction(EntityUid uid, FleshCultistComponent component, FleshCultistDevourActionEvent args)
@@ -320,8 +342,7 @@ public sealed partial class FleshCultistSystem : EntitySystem
                     _doAfterSystem.TryStartDoAfter(new DoAfterArgs(EntityManager, uid, component.DevourTime,
                         new FleshCultistDevourDoAfterEvent(), uid, target: target, used: uid)
                     {
-                        BreakOnTargetMove = true,
-                        BreakOnUserMove = true,
+                        BreakOnMove = true,
                     });
                     args.Handled = true;
                     break;
@@ -353,17 +374,16 @@ public sealed partial class FleshCultistSystem : EntitySystem
 
         var xform = Transform(args.Args.Target.Value);
         var coordinates = xform.Coordinates;
-        var filter = Filter.Pvs(args.Args.Target.Value, entityManager: EntityManager);
         var audio = AudioParams.Default.WithVariation(0.025f);
-        _audio.Play(component.DevourSound, filter, coordinates, true, audio);
+        _audio.PlayPvs(component.DevourSound, args.Args.Target.Value, audio);
         _popupSystem.PopupEntity(Loc.GetString("flesh-cultist-devour-target",
                 ("Entity", uid), ("Target", args.Args.Target)), uid);
 
-        if (TryComp<HumanoidAppearanceComponent>(args.Args.Target, out var HuAppComponent))
+        if (TryComp<HumanoidAppearanceComponent>(args.Args.Target, out var humanoidAppearanceComponent))
         {
-            if (TryComp(args.Args.Target.Value, out ContainerManagerComponent? container))
+            if (TryComp<ContainerManagerComponent>(args.Args.Target.Value, out var container))
             {
-                foreach (var cont in container.GetAllContainers().ToArray())
+                foreach (var cont in _container.GetAllContainers(args.Args.Target.Value,container).ToArray())
                 {
                     foreach (var ent in cont.ContainedEntities.ToArray())
                     {
@@ -371,9 +391,11 @@ public sealed partial class FleshCultistSystem : EntitySystem
                         {
                             continue;
                         }
-                        cont.Remove(ent, EntityManager, force: true);
-                        Transform(ent).Coordinates = coordinates;
-                        ent.RandomOffset(0.25f);
+
+                        _container.Remove(ent, cont, force: true, destination: coordinates);
+                        //cont.Remove(ent, EntityManager, force: true);
+                        //_transformSystem.SetCoordinates(ent, coordinates);
+                        _randomHelper.RandomOffset(ent, 0.25f);
                     }
                 }
             }
@@ -408,7 +430,7 @@ public sealed partial class FleshCultistSystem : EntitySystem
             {
                 if (key != HumanoidVisualLayers.Head)
                 {
-                    _sharedHuApp.SetBaseLayerId(args.Args.Target.Value, key, id, humanoid: HuAppComponent);
+                    _sharedHuApp.SetBaseLayerId(args.Args.Target.Value, key, id, humanoid: humanoidAppearanceComponent);
                 }
             }
 
@@ -431,7 +453,9 @@ public sealed partial class FleshCultistSystem : EntitySystem
         var healPoint = MatchHealPoint(bloodstream.BloodMaxVolume.Value / 100, hasAppearance);
         var tempSol = new Solution() { MaxVolume = 5 };
 
-        tempSol.AddSolution(bloodstream.BloodSolution, _proto);
+        var bloodstreamSol = bloodstream.BloodSolution ?? bloodstream.ChemicalSolution ?? bloodstream.TemporarySolution;
+        if(bloodstreamSol != null)
+            tempSol.AddSolution(bloodstreamSol.Value.Comp.Solution, _proto);
 
         if (_puddleSystem.TrySpillAt(args.Args.Target.Value, tempSol.SplitSolution(50), out var puddleUid))
         {
@@ -447,14 +471,14 @@ public sealed partial class FleshCultistSystem : EntitySystem
             QueueDel(args.Args.Target.Value);
         }
 
-        if (_solutionSystem.TryGetInjectableSolution(uid, out var injectableSolution))
+        if (_solutionSystem.TryGetInjectableSolution(uid, out var injectableSolution, out _))
         {
             var transferSolution = new Solution();
             foreach (var reagent in component.HealDevourReagents)
             {
                 transferSolution.AddReagent(reagent.Reagent, reagent.Quantity * healPoint);
             }
-            _solutionSystem.TryAddSolution(uid, injectableSolution, transferSolution);
+            _solutionSystem.TryAddSolution(injectableSolution.Value, transferSolution);
         }
 
         component.Hunger += saturation;
@@ -507,10 +531,10 @@ public sealed partial class FleshCultistSystem : EntitySystem
         };
     }
 
-    private bool ParasiteComesOut(EntityUid uid, FleshCultistComponent? component = null)
+    private void ParasiteComesOut(EntityUid uid, FleshCultistComponent? component = null)
     {
         if (!Resolve(uid, ref component))
-            return false;
+            return;
 
         var xform = Transform(uid);
         var coordinates = xform.Coordinates;
@@ -526,13 +550,12 @@ public sealed partial class FleshCultistSystem : EntitySystem
             ("Entity", uid), ("EntityTransform", abommob)), abommob, Filter.PvsExcept(abommob),
             true, PopupType.LargeCaution);
 
-        var filter = Filter.Pvs(uid, entityManager: EntityManager);
         var audio = AudioParams.Default.WithVariation(0.025f);
-        _audio.Play(component.SoundMutation, filter, coordinates, true, audio);
+        _audio.PlayPvs(component.SoundMutation, uid, audio);
 
-        if (TryComp(uid, out ContainerManagerComponent? container))
+        if (TryComp<ContainerManagerComponent>(uid, out var container))
         {
-            foreach (var cont in container.GetAllContainers().ToArray())
+            foreach (var cont in _container.GetAllContainers(uid,container).ToArray())
             {
                 foreach (var ent in cont.ContainedEntities.ToArray())
                 {
@@ -541,19 +564,20 @@ public sealed partial class FleshCultistSystem : EntitySystem
                             continue;
                         if (HasComp<UnremoveableComponent>(ent))
                             continue;
-                        cont.Remove(ent, EntityManager, force: true);
-                        Transform(ent).Coordinates = coordinates;
-                        ent.RandomOffset(0.25f);
+                        _container.Remove(ent, cont, force: true, destination: coordinates);
+                        //cont.Remove(ent, EntityManager, force: true);
+                        //_transformSystem.SetCoordinates(ent, coordinates);
+                        _randomHelper.RandomOffset(ent, 0.25f);
                     }
                 }
             }
         }
 
-        if (TryComp<BloodstreamComponent>(uid, out var bloodstream))
+        if (TryComp<BloodstreamComponent>(uid, out var bloodstream) && bloodstream.BloodSolution != null)
         {
             var tempSol = new Solution() { MaxVolume = 5 };
 
-            tempSol.AddSolution(bloodstream.BloodSolution, _proto);
+            tempSol.AddSolution(bloodstream.BloodSolution.Value.Comp.Solution, _proto);
 
             if (_puddleSystem.TrySpillAt(uid, tempSol.SplitSolution(50), out var puddleUid))
             {
@@ -566,19 +590,20 @@ public sealed partial class FleshCultistSystem : EntitySystem
         }
 
         QueueDel(uid);
-        return true;
     }
 
     public override void Update(float frameTime)
     {
         base.Update(frameTime);
 
-        foreach (var rev in EntityQuery<FleshCultistComponent>())
+        var q = EntityQueryEnumerator<FleshCultistComponent>();
+        while (q.MoveNext(out var owner, out var rev))
         {
             rev.Accumulator += frameTime;
 
             if (rev.Accumulator <= 1)
                 continue;
+
             rev.Accumulator -= 1;
 
             if (rev.Hunger <= 40)
@@ -588,16 +613,16 @@ public sealed partial class FleshCultistSystem : EntitySystem
                 {
                     rev.AccumulatorStarveNotify = 0;
                     _popup.PopupEntity(Loc.GetString("flesh-cultist-hungry"),
-                        rev.Owner, rev.Owner, PopupType.Large);
+                        owner, owner, PopupType.Large);
                 }
             }
 
             if (rev.Hunger < 0)
             {
-                ParasiteComesOut(rev.Owner, rev);
+                ParasiteComesOut(owner, rev);
             }
 
-            ChangeParasiteHunger(rev.Owner, rev.HungerСonsumption, rev);
+            ChangeParasiteHunger(owner, rev.HungerСonsumption, rev);
         }
     }
 
@@ -607,10 +632,11 @@ public sealed partial class FleshCultistSystem : EntitySystem
         if (args.Handled)
             return;
 
-        var xform = Transform(uid);
+        var xform = _transformSystem.GetMapCoordinates(uid);
         var puddles = new ValueList<(EntityUid Entity, string Solution)>();
         puddles.Clear();
-        foreach (var entity in _lookup.GetEntitiesInRange(xform.MapPosition, 0.5f))
+
+        foreach (var entity in _lookup.GetEntitiesInRange(xform, 0.5f))
         {
             if (TryComp<PuddleComponent>(entity, out var puddle))
             {
@@ -629,7 +655,7 @@ public sealed partial class FleshCultistSystem : EntitySystem
 
         foreach (var (puddle, solution) in puddles)
         {
-            if (!_solutionSystem.TryGetSolution(puddle, solution, out var puddleSolution))
+            if (!_solutionSystem.TryGetSolution(puddle, solution, out _, out var puddleSolution))
             {
                 continue;
             }
@@ -668,9 +694,9 @@ public sealed partial class FleshCultistSystem : EntitySystem
         {
             transferSolution.AddReagent(reagent.Reagent, reagent.Quantity * (totalBloodQuantity / 10));
         }
-        if (_solutionSystem.TryGetInjectableSolution(uid, out var injectableSolution))
+        if (_solutionSystem.TryGetInjectableSolution(uid, out var injectableSolution, out _))
         {
-            _solutionSystem.TryAddSolution(uid, injectableSolution, transferSolution);
+            _solutionSystem.TryAddSolution(injectableSolution.Value, transferSolution);
         }
         args.Handled = true;
     }

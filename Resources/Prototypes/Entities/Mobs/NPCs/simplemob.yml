@@ -25,20 +25,8 @@
     - ForcedSleep
     - TemporaryBlindness
     - Pacified
-    - ZombieDisease
-  - type: Body
-    prototype: Animal
-  - type: InjectableSolution
-    solution: chemicals
-  - type: Examiner
-  - type: Appearance
-  - type: RotationVisuals
-    defaultRotation: 0
-    horizontalRotation: 0
-  - type: Actions
-  - type: DoAfter
-  - type: Polymorphable
-  - type: Pullable
+    - SeeAll
+    - Flashed
   - type: Buckle
   - type: StandingState
   - type: Tag
@@ -67,7 +55,6 @@
   - type: Body
     prototype: Animal
   - type: Climbing
-  - type: Flashable
   - type: NameIdentifier
     group: GenericNumber
   - type: SlowOnDamage
@@ -87,6 +74,7 @@
   suffix: AI
   abstract: true
   components:
+  - type: DiseaseCarrier
   - type: Hunger
     thresholds: # only animals and rats are derived from this prototype so let's override it here and in rats' proto
       Overfed: 100
@@ -114,11 +102,12 @@
       - TemporaryBlindness
       - Pacified
       - StaminaModifier
+      - PsionicsDisabled
+      - PsionicallyInsulated
+      - SeeAll
+      - Flashed
   - type: Bloodstream
     bloodMaxVolume: 150
   - type: MobPrice
     price: 150
   - type: FloatingVisuals
-  - type: Puller
-    needsHands: false
-

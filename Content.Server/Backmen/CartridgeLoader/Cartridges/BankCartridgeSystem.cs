@@ -1,13 +1,14 @@
 ﻿using Content.Server.CartridgeLoader;
+using Content.Server.Chat.Managers;
 using Content.Server.PDA.Ringer;
 using Content.Server.Popups;
 using Content.Shared.Backmen.CartridgeLoader.Cartridges;
 using Content.Shared.Backmen.Economy;
 using Content.Shared.CartridgeLoader;
+using Content.Shared.Chat;
 using Content.Shared.Popups;
 using Content.Shared.Store;
 using Robust.Server.Containers;
-using Robust.Server.GameObjects;
 using Robust.Shared.Containers;
 using Robust.Shared.Player;
 using Robust.Shared.Prototypes;
@@ -20,15 +21,13 @@ public sealed class BankCartridgeSystem : EntitySystem
     [Dependency] private readonly CartridgeLoaderSystem? _cartridgeLoaderSystem = default!;
     [Dependency] private readonly RingerSystem _ringerSystem = default!;
     [Dependency] private readonly PopupSystem _popupSystem = default!;
-    [Dependency] private readonly ContainerSystem _containerSystem = default!;
+    [Dependency] private readonly IChatManager _chatManager = default!;
 
     public override void Initialize()
     {
         base.Initialize();
         SubscribeLocalEvent<BankCartridgeComponent, ComponentInit>(OnComponentInit);
         SubscribeLocalEvent<BankCartridgeComponent, ComponentRemove>(OnComponentRemove);
-        //SubscribeLocalEvent<BankCartridgeComponent, CartridgeMessageEvent>(OnUiMessage);
-        //SubscribeLocalEvent<BankCartridgeComponent, CartridgeUiReadyEvent>(OnUiReady);
         SubscribeLocalEvent<BankAccountComponent, ChangeBankAccountBalanceEvent>(OnChangeBankBalance);
         SubscribeLocalEvent<BankAccountComponent, EntGotInsertedIntoContainerMessage>(OnItemInserted);
         SubscribeLocalEvent<BankAccountComponent, EntGotRemovedFromContainerMessage>(OnItemRemoved);
@@ -84,7 +83,7 @@ public sealed class BankCartridgeSystem : EntitySystem
         {
             return;
         }
-        
+
         bankCartrdigeComponent.LinkedBankAccount = null;
     }
 
@@ -96,19 +95,19 @@ public sealed class BankCartridgeSystem : EntitySystem
         if (!parent.IsValid())
             return;
 
-        if (HasComp<RingerComponent>(parent))
+        if (TryComp<RingerComponent>(parent, out var ringerComponent))
         {
-            EnsureComp<ActiveRingerComponent>(parent);
+            _ringerSystem.RingerPlayRingtone((parent, ringerComponent));
             _cartridgeLoaderSystem?.UpdateCartridgeUiState(parent, new BankUiState(component.Balance));
 
             var player = Transform(parent).ParentUid;
-            if (player.IsValid() && HasComp<ActorComponent>(player))
+            if (player.IsValid() && TryComp<ActorComponent>(player, out var actor))
             {
                 var currencySymbol = "";
                 if (_prototypeManager.TryIndex(component.CurrencyType, out CurrencyPrototype? p))
                     currencySymbol = Loc.GetString(p.CurrencySymbol);
 
-                var change = (double)(args.ChangeAmount ?? 0);
+                var change = (double) (args.ChangeAmount ?? 0);
                 var changeAmount = $"{change}";
                 switch (change)
                 {
@@ -124,50 +123,29 @@ public sealed class BankCartridgeSystem : EntitySystem
                     }
                 }
 
+                var wrappedMessage = Loc.GetString(
+                    "bank-program-change-balance-notification",
+                    ("balance", component.Balance), ("change", changeAmount),
+                    ("currencySymbol", currencySymbol)
+                );
+
                 _popupSystem.PopupEntity(
-                    Loc.GetString(
-                        "bank-program-change-balance-notification",
-                        ("balance", component.Balance), ("change", changeAmount),
-                        ( "currencySymbol", currencySymbol )
-                    ),
+                    wrappedMessage,
                     parent,
                     Filter.Entities(player),
                     true,
                     PopupType.Medium
                 );
+
+                _chatManager.ChatMessageToOne(
+                    ChatChannel.Notifications,
+                    wrappedMessage,
+                    wrappedMessage,
+                    EntityUid.Invalid,
+                    false,
+                    actor.PlayerSession.Channel);
             }
         }
         //UpdateUiState(uid, parent, component);
     }
-/*
-    private void OnUiReady(EntityUid uid, BankCartridgeComponent component, CartridgeUiReadyEvent args)
-    {
-        UpdateUiState(uid, args.Loader, component);
-    }
-    private void OnUiMessage(EntityUid uid, BankCartridgeComponent component, CartridgeMessageEvent args)
-    {
-        UpdateUiState(uid, GetEntity(args.LoaderUid), component);
-    }
-    private void UpdateUiState(EntityUid uid, EntityUid loaderUid, BankCartridgeComponent? component)
-    {
-        if (!Resolve(uid, ref component))
-            return;
-
-        if(component.LinkedBankAccount == null && _containerSystem.TryGetContainer(loaderUid, "PDA-id", out var pdaSlot) && pdaSlot.Count != 0)
-        {
-
-        }
-
-        var state = new BankUiState();
-        if (component.LinkedBankAccount!= null)
-        {
-            state.LinkedAccountNumber = component.LinkedBankAccount.AccountNumber;
-            state.LinkedAccountName = component.LinkedBankAccount.AccountName;
-            state.LinkedAccountBalance = component.LinkedBankAccount.Balance;
-            if (_prototypeManager.TryIndex(component.LinkedBankAccount.CurrencyType, out CurrencyPrototype? p))
-                state.CurrencySymbol = Loc.GetString(p.CurrencySymbol);
-        }
-        _cartridgeLoaderSystem?.UpdateCartridgeUiState(loaderUid, state);
-    }
-    */
 }

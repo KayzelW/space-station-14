@@ -1,4 +1,4 @@
-﻿using Content.Server.Chat.Managers;
+﻿using Content.Server.GameTicking.Components;
 using Content.Server.GameTicking.Rules;
 using Content.Server.GameTicking.Rules.Components;
 
@@ -49,7 +49,7 @@ public sealed class WageSchedulerSystem : GameRuleSystem<WageSchedulerRuleCompon
             component.TimeUntilNextWage -= frameTime;
             return;
         }
-        _wageManagerSystem.Payday();
+        QueueLocalEvent(new WagePaydayEvent());
         component.TimeUntilNextWage = component.WageInterval;
 
     }

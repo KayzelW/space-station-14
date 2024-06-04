@@ -3,32 +3,28 @@ using System.Linq;
 using System.Numerics;
 using System.Text;
 using Content.Server.Access.Systems;
-using Content.Server.Atmos;
 using Content.Server.Atmos.Components;
 using Content.Server.Atmos.EntitySystems;
 using Content.Server.Backmen.NPC.Prototypes;
 using Content.Server.Backmen.NPC.Systems;
+using Content.Server.Backmen.Shipwrecked.Biome;
 using Content.Server.Backmen.Shipwrecked.Components;
 using Content.Server.Backmen.Shipwrecked.Prototypes;
 using Content.Server.Body.Components;
 using Content.Server.Buckle.Systems;
 using Content.Server.Chat.Managers;
 using Content.Server.Chat.Systems;
-using Content.Server.Chemistry.Components;
 using Content.Server.Construction.Components;
 using Content.Server.Destructible;
 using Content.Server.Doors.Systems;
 using Content.Server.Explosion.EntitySystems;
 using Content.Server.Fluids.EntitySystems;
 using Content.Server.GameTicking;
-using Content.Server.GameTicking.Events;
+using Content.Server.GameTicking.Components;
 using Content.Server.GameTicking.Rules;
-using Content.Server.GameTicking.Rules.Components;
 using Content.Server.Ghost.Roles.Components;
-using Content.Server.Humanoid;
 using Content.Server.Maps;
 using Content.Server.Mind;
-using Content.Server.NPC.Systems;
 using Content.Server.Paper;
 using Content.Server.Parallax;
 using Content.Server.Popups;
@@ -50,39 +46,54 @@ using Content.Server.Zombies;
 using Content.Shared.Access.Components;
 using Content.Shared.Atmos;
 using Content.Shared.Backmen.CCVar;
+using Content.Shared.Backmen.Shipwrecked.Components;
 using Content.Shared.Buckle.Components;
 using Content.Shared.Chat;
 using Content.Shared.Chemistry.Components;
 using Content.Shared.CombatMode.Pacification;
 using Content.Shared.Corvax.TTS;
 using Content.Shared.Damage;
+using Content.Shared.Dataset;
 using Content.Shared.Doors.Components;
 using Content.Shared.FixedPoint;
 using Content.Shared.Ghost;
 using Content.Shared.Gravity;
+using Content.Shared.Interaction.Events;
 using Content.Shared.Inventory;
 using Content.Shared.Lock;
 using Content.Shared.Maps;
 using Content.Shared.Mobs;
 using Content.Shared.Mobs.Systems;
+using Content.Shared.Movement.Components;
 using Content.Shared.Parallax;
 using Content.Shared.Parallax.Biomes;
+using Content.Shared.Physics;
+using Content.Shared.Pinpointer;
 using Content.Shared.Popups;
 using Content.Shared.Preferences;
 using Content.Shared.Procedural;
 using Content.Shared.Random;
 using Content.Shared.Random.Helpers;
-using Content.Shared.Roles;
 using Content.Shared.Roles.Jobs;
+using Content.Shared.Salvage;
 using Content.Shared.Shuttles.Components;
 using Content.Shared.Storage;
+using Content.Shared.Tag;
+using Content.Shared.Verbs;
 using Content.Shared.Zombies;
+using Robust.Server.Audio;
 using Robust.Server.GameObjects;
+using Robust.Server.Maps;
 using Robust.Server.Player;
 using Robust.Shared.Audio;
 using Robust.Shared.Configuration;
 using Robust.Shared.Map;
 using Robust.Shared.Map.Components;
+using Robust.Shared.Map.Enumerators;
+using Robust.Shared.Physics.Collision.Shapes;
+using Robust.Shared.Physics.Components;
+using Robust.Shared.Physics.Dynamics;
+using Robust.Shared.Physics.Systems;
 using Robust.Shared.Player;
 using Robust.Shared.Prototypes;
 using Robust.Shared.Random;
@@ -97,34 +108,29 @@ public sealed class ShipwreckedRuleSystem : GameRuleSystem<ShipwreckedRuleCompon
     [Dependency] private readonly IConfigurationManager _configurationManager = default!;
     [Dependency] private readonly IGameTiming _gameTiming = default!;
     [Dependency] private readonly IMapManager _mapManager = default!;
+    [Dependency] private readonly MapSystem _mapSystem = default!;
     [Dependency] private readonly IPlayerManager _playerManager = default!;
     [Dependency] private readonly IPrototypeManager _prototypeManager = default!;
     [Dependency] private readonly IRobustRandom _random = default!;
     [Dependency] private readonly IServerPreferencesManager _preferencesManager = default!;
     [Dependency] private readonly ITileDefinitionManager _tileDefinitionManager = default!;
     [Dependency] private readonly GameTicker _gameTicker = default!;
-    [Dependency] private readonly AccessSystem _accessSystem = default!;
     [Dependency] private readonly AtmosphereSystem _atmosphereSystem = default!;
     [Dependency] private readonly AudioSystem _audioSystem = default!;
     [Dependency] private readonly BiomeSystem _biomeSystem = default!;
     [Dependency] private readonly BuckleSystem _buckleSystem = default!;
-    [Dependency] private readonly ChatSystem _chatSystem = default!;
     [Dependency] private readonly DamageableSystem _damageableSystem = default!;
     [Dependency] private readonly DestructibleSystem _destructibleSystem = default!;
     [Dependency] private readonly DungeonSystem _dungeonSystem = default!;
     [Dependency] private readonly EntityLookupSystem _entityLookupSystem = default!;
     [Dependency] private readonly ExplosionSystem _explosionSystem = default!;
-    [Dependency] private readonly HumanoidAppearanceSystem _humanoidAppearanceSystem = default!;
     [Dependency] private readonly IdCardSystem _cardSystem = default!;
     [Dependency] private readonly InventorySystem _inventorySystem = default!;
     [Dependency] private readonly LockSystem _lockSystem = default!;
-    [Dependency] private readonly MapLoaderSystem _mapLoaderSystem = default!;
     [Dependency] private readonly MindSystem _mindSystem = default!;
     [Dependency] private readonly MobStateSystem _mobStateSystem = default!;
     [Dependency] private readonly NPCConversationSystem _npcConversationSystem = default!;
-    [Dependency] private readonly NPCSystem _npcSystem = default!;
     [Dependency] private readonly PaperSystem _paperSystem = default!;
-    [Dependency] private readonly PhysicsSystem _physicsSystem = default!;
     [Dependency] private readonly PopupSystem _popupSystem = default!;
     [Dependency] private readonly RoundEndSystem _roundEndSystem = default!;
     [Dependency] private readonly ShuttleSystem _shuttleSystem = default!;
@@ -137,21 +143,18 @@ public sealed class ShipwreckedRuleSystem : GameRuleSystem<ShipwreckedRuleCompon
     [Dependency] private readonly AirlockSystem _airlockSystem = default!;
     [Dependency] private readonly StationSystem _stationSystem = default!;
     [Dependency] private readonly StationJobsSystem _stationJobsSystem = default!;
-
-
-    private ISawmill _sawmill = default!;
+    [Dependency] private readonly MetaDataSystem _metadata = default!;
+    [Dependency] private readonly SharedPinpointerSystem _pinpointerSystem = default!;
+    [Dependency] private readonly TagSystem _tagSystem = default!;
 
     public override void Initialize()
     {
         base.Initialize();
 
-        _sawmill = Logger.GetSawmill("shipwrecked");
-
         SubscribeLocalEvent<FTLCompletedEvent>(OnFTLCompleted);
         SubscribeLocalEvent<FTLStartedEvent>(OnFTLStarted);
 
         SubscribeLocalEvent<RulePlayerSpawningEvent>(OnPlayersSpawning);
-        SubscribeLocalEvent<RoundEndTextAppendEvent>(OnRoundEndText);
 
         SubscribeLocalEvent<ShipwreckedNPCHecateComponent, MapInitEvent>(OnInitHecate);
         SubscribeLocalEvent<ShipwreckedNPCHecateComponent, ShipwreckedHecateAskGeneratorUnlockEvent>(OnAskGeneratorUnlock);
@@ -164,8 +167,93 @@ public sealed class ShipwreckedRuleSystem : GameRuleSystem<ShipwreckedRuleCompon
         SubscribeLocalEvent<ShipwreckSurvivorComponent, BeingGibbedEvent>(OnSurvivorBeingGibbed);
         SubscribeLocalEvent<EntityZombifiedEvent>(OnZombified);
 
-        SubscribeLocalEvent<LoadingMapsEvent>(OnLoadingMaps);
+        //SubscribeLocalEvent<LoadingMapsEvent>(OnLoadingMaps);
+        SubscribeLocalEvent<PostGameMapLoad>(OnMapReady);
         SubscribeLocalEvent<PlayerBeforeSpawnEvent>(OnBeforeSpawn);
+
+        SubscribeLocalEvent<ShipwreckMapGridComponent, UnLoadChunkEvent>(OnChunkUnLoaded);
+        SubscribeLocalEvent<ShipwreckMapGridComponent, MapInitEvent>(OnChunkLoad);
+
+
+        SubscribeLocalEvent<ShipwreckPinPointerComponent, MapInitEvent>(OnPinPointerSpawn);
+        SubscribeLocalEvent<ShipwreckPinPointerComponent, GetVerbsEvent<Verb>>(GetVerbsPinPointer);
+    }
+
+
+
+    public static readonly VerbCategory ShipwreckPinpointer =
+        new("verb-categories-shipwreck-pinpointer", null);
+    private void GetVerbsPinPointer(Entity<ShipwreckPinPointerComponent> ent, ref GetVerbsEvent<Verb> args)
+    {
+        if (ent.Comp.Rule == null || ent.Comp.Rule.VitalPieces.Count == 0)
+            return;
+
+        foreach (var (uid, (destination,structure)) in ent.Comp.Rule.VitalPieces)
+        {
+            var md = MetaData(uid);
+            Verb verb = new()
+            {
+                Text = md.EntityName,
+                Category = ShipwreckPinpointer,
+                Act = () =>
+                {
+                    if (!TryComp<PinpointerComponent>(ent, out var pinpointerComponent))
+                        return;
+                    _pinpointerSystem.SetTarget(ent,uid,pinpointerComponent);
+                    _pinpointerSystem.SetActive(ent,true,pinpointerComponent);
+                },
+                Message = md.EntityDescription,
+            };
+            args.Verbs.Add(verb);
+        }
+    }
+
+    private void OnPinPointerSpawn(Entity<ShipwreckPinPointerComponent> ent, ref MapInitEvent args)
+    {
+        if(!TryComp<PinpointerComponent>(ent, out var pinpointerComponent) || !QueryActiveRules().MoveNext(out var _, out var rule, out _))
+            return;
+        ent.Comp.Rule = rule;
+    }
+
+    private void OnAttackAttempt(Entity<ShipwreckSurvivorComponent> ent, ref AttackAttemptEvent args)
+    {
+        if(HasComp<PacifiedComponent>(ent))
+            args.Cancel();
+    }
+
+    private void OnMapReady(PostGameMapLoad ev)
+    {
+        if (_gameTicker.RunLevel != GameRunLevel.PreRoundLobby)
+        {
+            return; // we cant can't handle map without load
+        }
+        var query = EntityQueryEnumerator<ShipwreckedRuleComponent, GameRuleComponent>();
+        while (query.MoveNext(out var uid, out var shipwrecked, out var gameRule))
+        {
+            if (!GameTicker.IsGameRuleAdded(uid, gameRule))
+                continue;
+
+            AttachMap(ev.Grids.FirstOrDefault(), shipwrecked); // т.е. сначало добавление, далее загрузка карты, и после только запуск
+        }
+    }
+
+    private void OnChunkLoad(EntityUid uid, ShipwreckMapGridComponent component, MapInitEvent args)
+    {
+        var enumerator = new ChunkIndicesEnumerator(component.Area, SharedBiomeSystem.ChunkSize);
+
+        while (enumerator.MoveNext(out var chunk))
+        {
+            var chunkOrigin = chunk * SharedBiomeSystem.ChunkSize;
+            component.LoadedChunks.Add(chunkOrigin.Value);
+        }
+    }
+
+    private void OnChunkUnLoaded(Entity<ShipwreckMapGridComponent> ent, ref UnLoadChunkEvent args)
+    {
+        if (ent.Comp.LoadedChunks.Contains(args.Chunk))
+        {
+            args.Cancel();
+        }
     }
 
     private void OnBeforeSpawn(PlayerBeforeSpawnEvent ev)
@@ -233,7 +321,7 @@ public sealed class ShipwreckedRuleSystem : GameRuleSystem<ShipwreckedRuleCompon
 
         }
     }
-
+/*
     private void OnLoadingMaps(LoadingMapsEvent ev)
     {
         var query = EntityQueryEnumerator<ShipwreckedRuleComponent, GameRuleComponent>();
@@ -242,7 +330,8 @@ public sealed class ShipwreckedRuleSystem : GameRuleSystem<ShipwreckedRuleCompon
             if (!GameTicker.IsGameRuleAdded(uid, gameRule))
                 continue;
 
-            SpawnPlanet(uid, shipwrecked);
+
+            //SpawnPlanet(uid, shipwrecked);
 
             // This gamemode does not need a station. Revolutionary.
             //ev.Maps.Clear();
@@ -251,19 +340,33 @@ public sealed class ShipwreckedRuleSystem : GameRuleSystem<ShipwreckedRuleCompon
             // arrivals station, and centcomm station from loading that would be perfect.
         }
     }
+*/
+    [ValidatePrototypeId<DatasetPrototype>]
+    private const string PlanetNames = "names_borer";
+
+    private const int MaxPreloadOffset  = 200;
 
     private void SpawnPlanet(EntityUid uid, ShipwreckedRuleComponent component)
     {
+        if (component.PlanetMap.HasValue && !TerminatingOrDeleted(component.PlanetMap.Value) && component.PlanetMapId.HasValue && _mapManager.MapExists(component.PlanetMapId.Value))
+        {
+            return;
+        }
+
         // Most of this code below comes from a protected function in SpawnSalvageMissionJob
         // which really should be made more generic and public...
         //
         // Some of it has been modified to suit my needs.
 
-        var planetMapId = _mapManager.CreateMap();
-        var planetMapUid = _mapManager.GetMapEntityId(planetMapId);
-        _mapManager.AddUninitializedMap(planetMapId);
 
-        var ftl = _shuttleSystem.AddFTLDestination(planetMapUid, true);
+        var planetMapUid = _mapSystem.CreateMap(out var planetMapId,false);
+        //var planetMapUid = _mapManager.GetMapEntityId(planetMapId);
+        //_mapManager.AddUninitializedMap(planetMapId);
+
+        if (!_shuttleSystem.TryAddFTLDestination(planetMapId, true, out var ftl))
+        {
+            return;
+        }
         ftl.Whitelist = new ();
 
         var planetGrid = EnsureComp<MapGridComponent>(planetMapUid);
@@ -272,15 +375,19 @@ public sealed class ShipwreckedRuleSystem : GameRuleSystem<ShipwreckedRuleCompon
         if (destination == null)
             throw new ArgumentException("There is no destination for Shipwrecked.");
 
+        var seed = _random.Next();
+
         var biome = AddComp<BiomeComponent>(planetMapUid);
-        _biomeSystem.SetSeed(biome, _random.Next());
-        _biomeSystem.SetTemplate(biome, _prototypeManager.Index<BiomeTemplatePrototype>(destination.BiomePrototype));
-        _biomeSystem.AddMarkerLayer(biome, "OreTin");
-        _biomeSystem.AddMarkerLayer(biome, "OreGold");
-        _biomeSystem.AddMarkerLayer(biome, "OreSilver");
-        _biomeSystem.AddMarkerLayer(biome, "OrePlasma");
-        _biomeSystem.AddMarkerLayer(biome, "OreUranium");
-        _biomeSystem.AddTemplate(biome, "Loot", _prototypeManager.Index<BiomeTemplatePrototype>("Caves"), 1);
+        _biomeSystem.SetSeed(planetMapUid, biome, seed);
+        _biomeSystem.SetTemplate(planetMapUid, biome, _prototypeManager.Index<BiomeTemplatePrototype>(destination.BiomePrototype));
+        _biomeSystem.AddMarkerLayer(planetMapUid, biome, "OreIron");
+        _biomeSystem.AddMarkerLayer(planetMapUid, biome, "OreQuartz");
+        _biomeSystem.AddMarkerLayer(planetMapUid, biome, "OreGold");
+        _biomeSystem.AddMarkerLayer(planetMapUid, biome, "OreSilver");
+        _biomeSystem.AddMarkerLayer(planetMapUid, biome, "OrePlasma");
+        _biomeSystem.AddMarkerLayer(planetMapUid, biome, "OreUranium");
+        _biomeSystem.AddMarkerLayer(planetMapUid, biome, "OreArtifactFragment");
+        _biomeSystem.AddTemplate(planetMapUid, biome, "Loot", _prototypeManager.Index<BiomeTemplatePrototype>("Caves"), 1);
         Dirty(planetMapUid, biome);
 
         // Gravity
@@ -296,7 +403,7 @@ public sealed class ShipwreckedRuleSystem : GameRuleSystem<ShipwreckedRuleCompon
 
         if (destination.Atmosphere != null)
         {
-            _atmosphereSystem.SetMapAtmosphere(planetMapUid, false, destination.Atmosphere, atmos);
+            _atmosphereSystem.SetMapAtmosphere(planetMapUid, false, destination.Atmosphere);
         }
         else
         {
@@ -305,13 +412,9 @@ public sealed class ShipwreckedRuleSystem : GameRuleSystem<ShipwreckedRuleCompon
             moles[(int) Gas.Oxygen] = 21.824779f;
             moles[(int) Gas.Nitrogen] = 82.10312f;
 
-            var mixture = new GasMixture(2500)
-            {
-                Temperature = 293.15f,
-                Moles = moles,
-            };
+            var mixture = new GasMixture(moles, 293.15f,2500);
 
-            _atmosphereSystem.SetMapAtmosphere(planetMapUid, false, mixture, atmos);
+            _atmosphereSystem.SetMapAtmosphere(planetMapUid, false, mixture);
         }
 
         // Lighting
@@ -322,6 +425,34 @@ public sealed class ShipwreckedRuleSystem : GameRuleSystem<ShipwreckedRuleCompon
             Dirty(planetMapUid, lighting);
         }
 
+        // planetName
+        var planetName = SharedSalvageSystem.GetFTLName(_prototypeManager.Index<DatasetPrototype>(PlanetNames), seed);
+        _metadata.SetEntityName(planetMapUid, planetName);
+
+        // Позиция карта (точка начала)
+        var mapPos = new MapCoordinates(new Vector2(0f, 0f), planetMapId);
+
+        var restriction = AddComp<RestrictedRangeComponent>(planetMapUid);
+        restriction.Origin = mapPos.Position;
+
+        restriction.Range = MaxPreloadOffset;
+
+        // Enclose the area
+        var boundaryUid = Spawn(null, mapPos);
+        var boundaryPhysics = AddComp<PhysicsComponent>(boundaryUid);
+        var cShape = new ChainShape();
+        // Don't need it to be a perfect circle, just need it to be loosely accurate.
+        cShape.CreateLoop(Vector2.Zero, restriction.Range + 1f, false, count: 4);
+        EntityManager.System<FixtureSystem>()
+            .TryCreateFixture(
+            boundaryUid,
+            cShape,
+            "boundary",
+            collisionLayer: (int) (CollisionGroup.HighImpassable | CollisionGroup.Impassable | CollisionGroup.LowImpassable | CollisionGroup.GhostImpassable),
+            body: boundaryPhysics);
+        EntityManager.System<SharedPhysicsSystem>().WakeBody(boundaryUid, body: boundaryPhysics);
+        AddComp<BoundaryComponent>(boundaryUid);
+
         _mapManager.DoMapInitialize(planetMapId);
         _mapManager.SetMapPaused(planetMapId, true);
 
@@ -330,11 +461,39 @@ public sealed class ShipwreckedRuleSystem : GameRuleSystem<ShipwreckedRuleCompon
         component.PlanetGrid = planetGrid;
     }
 
+    private void PreloadPlanet(ShipwreckedRuleComponent component, BiomeComponent? biomeComponent = null)
+    {
+        if (!Resolve(component.PlanetMap!.Value, ref biomeComponent))
+        {
+            return;
+        }
+        var mapPos = new MapCoordinates(new Vector2(0f, 0f), component.PlanetMapId!.Value);
+        var preloadArea = new Vector2(MaxPreloadOffset, MaxPreloadOffset);
+        var targetArea = new Box2(mapPos.Position - preloadArea, mapPos.Position + preloadArea);
+
+        RemComp<ShipwreckMapGridComponent>(component.PlanetMap.Value);
+
+        AddComp(component.PlanetMap.Value,
+            new ShipwreckMapGridComponent
+        {
+            Area = targetArea
+        });
+
+        Log.Info("PreloadPlanet {0}", targetArea.ToString());
+
+        _biomeSystem.Preload(component.PlanetMap.Value, biomeComponent, targetArea); // как основная игровая карта должна быть предзагружена для всех!
+
+
+
+        Log.Info("PreloadPlanet DONE!");
+    }
+
     private async void SpawnPlanetaryStructures(EntityUid uid, ShipwreckedRuleComponent component)
     {
         if (component.Destination == null || component.PlanetMap == null || component.PlanetGrid == null)
             return;
 
+        PreloadPlanet(component);
         var origin = new EntityCoordinates(component.PlanetMap.Value, Vector2.Zero);
         var directions = new Vector2i[]
         {
@@ -365,31 +524,95 @@ public sealed class ShipwreckedRuleSystem : GameRuleSystem<ShipwreckedRuleCompon
         foreach (var direction in directions)
         {
             var minDistance = component.Destination.StructureDistance;
-            var distance = _random.Next(minDistance, (int) (minDistance * 1.2));
+            var distance = Math.Min(_random.Next(minDistance, (int) (minDistance * 1.2)), MaxPreloadOffset - 5);
 
             var point = direction * distance;
 
             var dungeonProto = structuresToBuild.Pop();
-            var dungeon = await _dungeonSystem.GenerateDungeonAsync(dungeonProto, component.PlanetMap.Value, component.PlanetGrid,
-                point, _random.Next());
+            var dungeon = await _dungeonSystem.GenerateDungeonAsync(dungeonProto,
+                component.PlanetMap.Value,
+                component.PlanetGrid,
+                point,
+                _random.Next());
 
             component.Structures.Add(dungeon);
         }
     }
 
-    private bool AttachMap(EntityUid uid, ShipwreckedRuleComponent component)
-    {
-        //var spaceMapUid = _mapManager.GetMapEntityId(_gameTicker.DefaultMap);
-        component.SpaceMapId = _gameTicker.DefaultMap;
 
-        var shuttleStation = _stationSystem.GetStationInMap(_gameTicker.DefaultMap);
-        if (shuttleStation == null)
+    private MapId LoadDefaultMap()
+    {
+        _gameTicker.LoadGameMap(_prototypeManager.Index<GameMapPrototype>(DefaultShuttle), _gameTicker.DefaultMap, new MapLoadOptions(), null);
+        return _gameTicker.DefaultMap;
+    }
+
+    [ValidatePrototypeId<GameMapPrototype>]
+    private const string DefaultShuttle = "ShwrAdventurer";
+    private bool AttachMap(EntityUid gridId, ShipwreckedRuleComponent component, bool force = false)
+    {
+        var mapId = component.SpaceMapId ?? _gameTicker.DefaultMap;
+        //var spaceMapUid = _mapManager.GetMapEntityId(_gameTicker.DefaultMap);
+
+        var isValidMap = false;
+
+        foreach (var (spawnPointComponent, meta, xform) in EntityQuery<SpawnPointComponent, MetaDataComponent, TransformComponent>(true))
+        {
+            if (meta.EntityPrototype?.ID != component.SpawnPointHecate.Id)
+                continue;
+
+            if (gridId.IsValid())
+            {
+                if (xform.GridUid != gridId)
+                    continue;
+            }
+            else
+            {
+                if(xform.MapID != mapId)
+                    continue;
+            }
+
+            isValidMap = true;
+            break;
+        }
+
+        if (!isValidMap && !force)
         {
             return false;
         }
+
+        if (!isValidMap)
+        {
+            if (_mapManager.MapExists(_gameTicker.DefaultMap))
+            {
+                var qp = EntityQueryEnumerator<ActorComponent, MetaDataComponent, TransformComponent>();
+                while (qp.MoveNext(out var actor, out _, out _))
+                {
+                    _gameTicker.Respawn(actor.PlayerSession);
+                }
+                _mapManager.DeleteMap(_gameTicker.DefaultMap);
+
+
+                foreach (var map in _mapManager.GetAllMapIds().ToArray())
+                {
+                    _mapManager.DeleteMap(map);
+                }
+
+                _mapSystem.CreateMap(_gameTicker.DefaultMap, _gameTicker.RunLevel == GameRunLevel.InRound);
+            }
+
+            mapId = LoadDefaultMap();
+        }
+
+        var shuttleStation = _stationSystem.GetStationInMap(mapId); // then load secret no station in preloaded
+        if (shuttleStation == null)
+        {
+            mapId = LoadDefaultMap();
+            shuttleStation = _stationSystem.GetStationInMap(mapId);
+        }
+        component.SpaceMapId = mapId;
         component.ShuttleStation = shuttleStation;
 
-        var shuttleGrid = GetShuttleInMap(_gameTicker.DefaultMap);//_stationSystem.GetStationInMap(_gameTicker.DefaultMap);
+        var shuttleGrid = GetShuttleInMap(mapId);//_stationSystem.GetStationInMap(_gameTicker.DefaultMap);
         if (shuttleGrid == null)
         {
             return false;
@@ -404,7 +627,7 @@ public sealed class ShipwreckedRuleSystem : GameRuleSystem<ShipwreckedRuleCompon
     {
         if (component.Hecate != null)
         {
-            _sawmill.Warning("Hecate was already spawned.");
+            Log.Warning("Hecate was already spawned.");
             return;
         }
 
@@ -436,7 +659,7 @@ public sealed class ShipwreckedRuleSystem : GameRuleSystem<ShipwreckedRuleCompon
         var spawns = new List<EntityCoordinates>();
 
         var query = EntityQueryEnumerator<SpawnPointComponent, MetaDataComponent, TransformComponent>();
-        while (query.MoveNext(out var uid, out var meta, out var xform))
+        while (query.MoveNext(out _, out var meta, out var xform))
         {
             if (meta.EntityPrototype?.ID != component.SpawnPointTraveller.Id)
                 continue;
@@ -453,7 +676,7 @@ public sealed class ShipwreckedRuleSystem : GameRuleSystem<ShipwreckedRuleCompon
         return spawns;
     }
 
-    private bool SpawnTraveller(IPlayerSession player, EntityCoordinates spawnPoint, StringBuilder manifest, ShipwreckedRuleComponent component)
+    private bool SpawnTraveller(ICommonSession player, EntityCoordinates spawnPoint, StringBuilder manifest, ShipwreckedRuleComponent component)
     {
         var profile = _preferencesManager.GetPreferences(player.UserId).SelectedCharacter as HumanoidCharacterProfile;
 
@@ -473,14 +696,14 @@ public sealed class ShipwreckedRuleSystem : GameRuleSystem<ShipwreckedRuleCompon
 
         var jobProtoId = _random.Pick(component.AvailableJobPrototypes);
 
-        if (!_prototypeManager.TryIndex(jobProtoId, out JobPrototype? jobPrototype))
+        if (!_prototypeManager.TryIndex(jobProtoId, out var jobPrototype))
             throw new ArgumentException($"Invalid JobPrototype: {jobProtoId}");
 
         var mindId = _mindSystem.CreateMind(player.UserId, profile.Name);
 
         var job = new JobComponent
         {
-            PrototypeId = jobProtoId
+            Prototype = jobProtoId
         };
         _roleSystem.MindAddRole(mindId, job);
 
@@ -524,7 +747,10 @@ public sealed class ShipwreckedRuleSystem : GameRuleSystem<ShipwreckedRuleCompon
         warpPoint.Location = mobName;
         /* warpPoint.Follow = true; */
 
-        EnsureComp<PacifiedComponent>(mob);
+        if (_autoPacified)
+        {
+            EnsureComp<PacifiedComponent>(mob);
+        }
 
         return true;
     }
@@ -542,8 +768,8 @@ public sealed class ShipwreckedRuleSystem : GameRuleSystem<ShipwreckedRuleCompon
         //
 
         // Blow the thrusters.
-        var query = EntityQueryEnumerator<ThrusterComponent, TransformComponent>();
-        while (query.MoveNext(out var uid, out var thruster, out var xform))
+        var query = EntityQueryEnumerator<ThrusterComponent, TransformComponent, MetaDataComponent>();
+        while (query.MoveNext(out var uid, out var thruster, out var xform, out var metaDataComponent))
         {
             if (xform.GridUid != component.Shuttle)
                 continue;
@@ -646,7 +872,7 @@ public sealed class ShipwreckedRuleSystem : GameRuleSystem<ShipwreckedRuleCompon
 
         if (component.Structures.Count == 0)
         {
-            _sawmill.Warning("Unable to get a structure spot. Making something up...");
+            Log.Warning("Unable to get a structure spot. Making something up...");
 
             var distance = component.Destination?.StructureDistance ?? 50;
             coordinates = new EntityCoordinates(component.PlanetMap.Value, _random.NextVector2(-distance, distance));
@@ -675,8 +901,10 @@ public sealed class ShipwreckedRuleSystem : GameRuleSystem<ShipwreckedRuleCompon
         if (component.PlanetMap == null || component.PlanetGrid == null)
             return;
 
-        var thrusterQuery = EntityQueryEnumerator<ThrusterComponent, TransformComponent>();
-        while (thrusterQuery.MoveNext(out var uid, out var thruster, out var xform))
+        var ic = 0;
+
+        var thrusterQuery = EntityQueryEnumerator<ThrusterComponent, TransformComponent, MetaDataComponent>();
+        while (thrusterQuery.MoveNext(out var uid, out var thruster, out var xform, out var metaDataComponent))
         {
             if (xform.GridUid != component.Shuttle)
                 continue;
@@ -684,6 +912,8 @@ public sealed class ShipwreckedRuleSystem : GameRuleSystem<ShipwreckedRuleCompon
             if (thruster.Type == ThrusterType.Angular)
                 // Ignore the gyroscope.
                 continue;
+
+            ic++;
 
             if (TryGetRandomStructureSpot(component, out var spot, out var structure))
             {
@@ -693,7 +923,9 @@ public sealed class ShipwreckedRuleSystem : GameRuleSystem<ShipwreckedRuleCompon
                     component.VitalPieceStructureSpots.Add(structure, new () {spot});
             }
 
-            _sawmill.Info($"Space debris! {ToPrettyString(uid)} will go to {spot}");
+            Log.Info($"Space debris! {ToPrettyString(uid)} will go to {spot}");
+            _metadata.SetEntityName(uid, $"{metaDataComponent.EntityName} ({ic})");
+            _metadata.SetEntityDescription(uid, $"Компонент необходимый для ремонта шаттла");
 
             // We do this before moving the pieces,
             // so they don't get affected by the explosion.
@@ -717,7 +949,7 @@ public sealed class ShipwreckedRuleSystem : GameRuleSystem<ShipwreckedRuleCompon
             ++planetGeneratorCount;
         }
 
-        _sawmill.Info($"Shipwreck destination has {planetGeneratorPower} W worth of {planetGeneratorCount} scavengeable generators.");
+        Log.Info($"Shipwreck destination has {planetGeneratorPower} W worth of {planetGeneratorCount} scavengeable generators.");
 
         if (planetGeneratorPower < component.OriginalPowerDemand)
         {
@@ -730,8 +962,8 @@ public sealed class ShipwreckedRuleSystem : GameRuleSystem<ShipwreckedRuleCompon
             // but I'd rather players be able to win than be hard-locked into losing.
 
             // How many will we need?
-            const float UraniumPower = 15000f;
-            var generatorsNeeded = Math.Max(1, component.OriginalPowerDemand / UraniumPower);
+            const float uraniumPower = 15000f;
+            var generatorsNeeded = Math.Max(1, component.OriginalPowerDemand / uraniumPower);
 
             for (int i = 0; i < generatorsNeeded; ++i)
             {
@@ -740,7 +972,7 @@ public sealed class ShipwreckedRuleSystem : GameRuleSystem<ShipwreckedRuleCompon
                 var uid = Spawn("PortableGeneratorSuperPacman", somewhere);
 
                 TryGetRandomStructureSpot(component, out var spot, out var structure);
-                _sawmill.Info($"Heaven generator! {ToPrettyString(uid)} will go to {spot}");
+                Log.Info($"Heaven generator! {ToPrettyString(uid)} will go to {spot}");
 
                 MakeCrater(component.PlanetGrid, spot);
                 component.VitalPieces.Add(uid, (spot, structure));
@@ -846,7 +1078,7 @@ public sealed class ShipwreckedRuleSystem : GameRuleSystem<ShipwreckedRuleCompon
         var availableStructures = component.Structures.ToList();
         if (availableStructures.Count == 0)
         {
-            _sawmill.Error("NYI: There are no structures for the factions to spawn around.");
+            Log.Error("NYI: There are no structures for the factions to spawn around.");
             return;
         }
 
@@ -868,7 +1100,7 @@ public sealed class ShipwreckedRuleSystem : GameRuleSystem<ShipwreckedRuleCompon
 
             SpawnFaction(component, majorPower, majorStructures);
 
-            _sawmill.Info($"{majorPower} has taken control of {majorStructures.Count} structures.");
+            Log.Info($"{majorPower} has taken control of {majorStructures.Count} structures.");
 
             // Pick another, different faction to be the minor power.
             var minorPower = availableFactions.Pop();
@@ -876,7 +1108,7 @@ public sealed class ShipwreckedRuleSystem : GameRuleSystem<ShipwreckedRuleCompon
 
             SpawnFaction(component, minorPower, minorStructures);
 
-            _sawmill.Info($"{minorPower} has taken control of {minorStructures.Count} structures.");
+            Log.Info($"{minorPower} has taken control of {minorStructures.Count} structures.");
         }
     }
 
@@ -887,11 +1119,6 @@ public sealed class ShipwreckedRuleSystem : GameRuleSystem<ShipwreckedRuleCompon
 
         if (!TryComp<MapGridComponent>(component.Shuttle, out var grid))
             return;
-
-        foreach (var (mob, _) in component.Survivors)
-        {
-            RemCompDeferred<PacifiedComponent>(mob);
-        }
 
         // Slam the front window.
         var aabb = grid.LocalAABB;
@@ -921,11 +1148,10 @@ public sealed class ShipwreckedRuleSystem : GameRuleSystem<ShipwreckedRuleCompon
         {
             var smokeEnt = Spawn("Smoke", spot);
             var smoke = EnsureComp<SmokeComponent>(smokeEnt);
-            smoke.SpreadAmount = 70;
 
             // Breathing smoke is not good for you.
             var toxin = new Solution("Toxin", FixedPoint2.New(2));
-            _smokeSystem.Start(smokeEnt, smoke, toxin, duration: 20f);
+            _smokeSystem.StartSmoke(smokeEnt, toxin, 20f, 70, smoke);
         }
 
         // Fry the console.
@@ -963,7 +1189,7 @@ public sealed class ShipwreckedRuleSystem : GameRuleSystem<ShipwreckedRuleCompon
         var xformQuery = GetEntityQuery<TransformComponent>();
         var filter = Filter.Empty();
 
-        foreach (var player in _playerManager.ServerSessions)
+        foreach (var player in _playerManager.Sessions)
         {
             if (player.AttachedEntity is not {Valid: true} playerEntity)
                 continue;
@@ -993,7 +1219,7 @@ public sealed class ShipwreckedRuleSystem : GameRuleSystem<ShipwreckedRuleCompon
             Color.SeaGreen);
 
         var announcementSound = new SoundPathSpecifier(ChatSystem.DefaultAnnouncementSound);
-        var announcementEv = new AnnouncementSpokeEvent(filter, _audioSystem.GetSound(announcementSound), AudioParams.Default.WithVolume(1f), message);
+        var announcementEv = new AnnouncementSpokeEvent(filter, _audioSystem.GetSound(announcementSound), AudioParams.Default.WithVolume(-2f), message);
         RaiseLocalEvent(announcementEv);
         //var audioPath = _audioSystem.GetSound(audio);
         //_audioSystem.PlayGlobal(audioPath, filter, true, AudioParams.Default.WithVolume(1f));
@@ -1003,7 +1229,7 @@ public sealed class ShipwreckedRuleSystem : GameRuleSystem<ShipwreckedRuleCompon
     {
         if (component.Hecate is not {} hecate)
         {
-            _sawmill.Warning($"Hecate was not found for message: {message}");
+            Log.Warning($"Hecate was not found for message: {message}");
             return;
         }
 
@@ -1026,12 +1252,19 @@ public sealed class ShipwreckedRuleSystem : GameRuleSystem<ShipwreckedRuleCompon
             if (component.EventSchedule.Count > 0)
                 component.NextEventTick = curTime + component.EventSchedule[0].timeOffset;
 
-            _sawmill.Info($"Running event: {curEvent}");
+            Log.Info($"Running event: {curEvent}");
 
             switch (curEvent.eventId)
             {
                 case ShipwreckedEventId.AnnounceTransit:
                 {
+                    // try to fix KeyNotFound in FindNewContacsts in client without /resetallents
+                    var q = EntityQueryEnumerator<PhysicsMapComponent,MetaDataComponent>();
+                    while (q.MoveNext(out var owner, out var comp, out var md))
+                    {
+                        Dirty(owner,comp,md);
+                    }
+
                     // We have to wait for the dungeon atlases to be ready, so do this here.
                     SpawnPlanetaryStructures(uid, component);
 
@@ -1069,7 +1302,6 @@ public sealed class ShipwreckedRuleSystem : GameRuleSystem<ShipwreckedRuleCompon
                 case ShipwreckedEventId.MidflightDamage:
                 {
                     DamageShuttleMidflight(component);
-                    CloseAllRuleJobs(component);
 
                     if (component.Hecate != null)
                     {
@@ -1141,6 +1373,11 @@ public sealed class ShipwreckedRuleSystem : GameRuleSystem<ShipwreckedRuleCompon
                             "status",
                             "weapons"
                         });
+                    CloseAllRuleJobs(component);
+                    foreach (var (mob, _) in component.Survivors)
+                    {
+                        RemCompDeferred<PacifiedComponent>(mob);
+                    }
 
                     break;
                 }
@@ -1165,10 +1402,11 @@ public sealed class ShipwreckedRuleSystem : GameRuleSystem<ShipwreckedRuleCompon
                     HecateSay(Loc.GetString("shipwrecked-hecate-launch"),
                         component);
 
-                    _shuttleSystem.FTLTravel(shuttle,
+                    _shuttleSystem.FTLToCoordinates(shuttle,
                         Comp<ShuttleComponent>(shuttle),
                         new EntityCoordinates(spaceMap, 0, 0),
-                        hyperspaceTime: 120f);
+                        Angle.Zero, hyperspaceTime: 120f)
+                        ;
                     break;
                 }
             }
@@ -1180,6 +1418,8 @@ public sealed class ShipwreckedRuleSystem : GameRuleSystem<ShipwreckedRuleCompon
         return EntityQuery<BecomesStationComponent, ShuttleComponent, TransformComponent>(true)
             .FirstOrNull(x=>x.Item3.MapID == map)?.Item3.GridUid;
     }
+
+    private bool _autoPacified = true;
 
     private void OpenAllRuleJobs(ShipwreckedRuleComponent component)
     {
@@ -1196,6 +1436,7 @@ public sealed class ShipwreckedRuleSystem : GameRuleSystem<ShipwreckedRuleCompon
             _stationJobsSystem.MakeJobUnlimited(component.ShuttleStation.Value, componentAvailableJobPrototype.Id);
         }
         */
+        _autoPacified = true;
     }
 
     private void CloseAllRuleJobs(ShipwreckedRuleComponent component)
@@ -1209,6 +1450,8 @@ public sealed class ShipwreckedRuleSystem : GameRuleSystem<ShipwreckedRuleCompon
         {
             _stationJobsSystem.TrySetJobSlot(component.ShuttleStation.Value, componentAvailableJobPrototype.Id, 0, true);
         }
+
+        _autoPacified = false;
     }
 
     protected override void Added(EntityUid uid, ShipwreckedRuleComponent component, GameRuleComponent gameRule, GameRuleAddedEvent args)
@@ -1219,16 +1462,30 @@ public sealed class ShipwreckedRuleSystem : GameRuleSystem<ShipwreckedRuleCompon
 
         component.Destination = _prototypeManager.Index<ShipwreckDestinationPrototype>(destination);
 
-
+        SpawnPlanet(uid, component);
+        /*
         if (_gameTicker.RunLevel == GameRunLevel.InRound)
         {
-            AttachMap(uid, component);
-            SpawnPlanet(uid, component);
+            foreach (var map in _mapManager.GetAllMapIds().ToArray())
+            {
+                if (component.PlanetMapId.HasValue && component.PlanetMapId.Value == map)
+                {
+                    continue;
+                }
+
+                if (_gameTicker.DefaultMap == map)
+                {
+                    continue;
+                }
+
+                //cleanup
+                _mapManager.DeleteMap(map);
+            }
 
             if (component.Shuttle == null)
                 throw new ArgumentException($"Shipwrecked failed to spawn a Shuttle.");
         }
-
+*/
         // Currently, the AutoCallStartTime is part of the public API and not access restricted.
         // If this ever changes, I will send a patch upstream to allow it to be altered.
         _roundEndSystem.AutoCallStartTime = TimeSpan.MaxValue;
@@ -1236,9 +1493,16 @@ public sealed class ShipwreckedRuleSystem : GameRuleSystem<ShipwreckedRuleCompon
 
     protected override void Started(EntityUid uid, ShipwreckedRuleComponent component, GameRuleComponent gameRule, GameRuleStartedEvent args)
     {
-        AttachMap(uid, component);
+        if (component.Shuttle == null || !component.Shuttle.Value.IsValid())
+        {
+            if (!AttachMap(EntityUid.Invalid, component, true))
+            {
+                _gameTicker.EndGameRule(uid, gameRule);
+                throw new ArgumentException("Неправильная карта! Отмена!");
+            }
 
-        _mapManager.SetMapPaused(component.PlanetMapId!.Value, false);
+        }
+        EnsureMapUnpaused(component);
 
         var loadQuery = EntityQueryEnumerator<ApcPowerReceiverComponent, TransformComponent>();
         while (loadQuery.MoveNext(out _, out var apcPowerReceiver, out var xform))
@@ -1249,7 +1513,7 @@ public sealed class ShipwreckedRuleSystem : GameRuleSystem<ShipwreckedRuleCompon
             component.OriginalPowerDemand += apcPowerReceiver.Load;
         }
 
-        _sawmill.Info($"The original power demand for the shuttle is {component.OriginalPowerDemand} W");
+        Log.Info($"The original power demand for the shuttle is {component.OriginalPowerDemand} W");
 
         var shuttle = component.Shuttle!.Value;
 
@@ -1269,9 +1533,21 @@ public sealed class ShipwreckedRuleSystem : GameRuleSystem<ShipwreckedRuleCompon
 
         component.NextEventTick = _gameTiming.CurTime + component.EventSchedule[0].timeOffset;
 
-        _shuttleSystem.FTLTravel(shuttle,
+        if (component.PlanetMap == null || TerminatingOrDeleted(component.PlanetMap.Value))
+        {
+            SpawnPlanet(uid,component);
+        }
+
+        if (component.PlanetMap == null || TerminatingOrDeleted(component.PlanetMap.Value))
+        {
+            _gameTicker.EndGameRule(uid, gameRule);
+            throw new ArgumentException("Неправильная карта планеты! Отмена!");
+        }
+
+        _shuttleSystem.FTLToCoordinates(shuttle,
             Comp<ShuttleComponent>(shuttle),
-            Transform(component.PlanetMap.GetValueOrDefault()).Coordinates,
+            new EntityCoordinates(component.PlanetMap.Value, Vector2.Zero),
+            Angle.Zero,
             // The travellers are already in FTL by the time the gamemode starts.
             startupTime: 0,
             hyperspaceTime: (float) flightTime.TotalSeconds);
@@ -1293,6 +1569,14 @@ public sealed class ShipwreckedRuleSystem : GameRuleSystem<ShipwreckedRuleCompon
         return null;
     }
 
+    private void EnsureMapUnpaused(ShipwreckedRuleComponent shipwrecked)
+    {
+        if (shipwrecked.PlanetMapId != null && _mapManager.MapExists(shipwrecked.PlanetMapId.Value) && _mapManager.IsMapPaused(shipwrecked.PlanetMapId.Value))
+        {
+            _mapManager.SetMapPaused(shipwrecked.PlanetMapId!.Value, false);
+        }
+    }
+
     private void OnPlayersSpawning(RulePlayerSpawningEvent ev)
     {
         var query = EntityQueryEnumerator<ShipwreckedRuleComponent, GameRuleComponent>();
@@ -1301,7 +1585,9 @@ public sealed class ShipwreckedRuleSystem : GameRuleSystem<ShipwreckedRuleCompon
             if (!GameTicker.IsGameRuleAdded(uid, gameRule))
                 continue;
 
-            var players = new List<IPlayerSession>(ev.PlayerPool)
+            EnsureMapUnpaused(shipwrecked);
+
+            var players = new List<ICommonSession>(ev.PlayerPool)
                 .Where(player => ev.Profiles.ContainsKey(player.UserId));
 
             var manifest = SpawnManifest(uid, shipwrecked);
@@ -1327,79 +1613,73 @@ public sealed class ShipwreckedRuleSystem : GameRuleSystem<ShipwreckedRuleCompon
         }
     }
 
-    private void OnRoundEndText(RoundEndTextAppendEvent ev)
+    protected override void AppendRoundEndText(EntityUid uid, ShipwreckedRuleComponent shipwrecked, GameRuleComponent gameRule,
+        ref RoundEndTextAppendEvent ev)
     {
-        var query = EntityQueryEnumerator<ShipwreckedRuleComponent, GameRuleComponent>();
-        while (query.MoveNext(out var uid, out var shipwrecked, out var gameRule))
+        ev.AddLine(Loc.GetString("shipwrecked-list-start"));
+
+        foreach (var (survivor, session) in shipwrecked.Survivors)
         {
-            if (!GameTicker.IsGameRuleActive(uid, gameRule))
-                continue;
-
-            ev.AddLine(Loc.GetString("shipwrecked-list-start"));
-
-            foreach (var (survivor, session) in shipwrecked.Survivors)
+            var name = Loc.GetString("generic-unknown");
+            if (!TerminatingOrDeleted(survivor))
             {
-                var name = Loc.GetString("generic-unknown");
-                if (!TerminatingOrDeleted(survivor))
-                {
-                    name = MetaData(survivor).EntityName;
-                }
-                if (IsDead(survivor))
-                {
-                    ev.AddLine(Loc.GetString("shipwrecked-list-perished-name",
-                        ("name", name),
-                        ("user", session.Name)));
-                }
-                else if (shipwrecked.AllObjectivesComplete &&
-                    Transform(survivor).GridUid == shipwrecked.Shuttle)
-                {
-                    ev.AddLine(Loc.GetString("shipwrecked-list-escaped-name",
-                        ("name", name),
-                        ("user", session.Name)));
-                }
-                else
-                {
-                    ev.AddLine(Loc.GetString("shipwrecked-list-survived-name",
-                        ("name", name),
-                        ("user", session.Name)));
-                }
+                name = MetaData(survivor).EntityName;
             }
+            if (IsDead(survivor))
+            {
+                ev.AddLine(Loc.GetString("shipwrecked-list-perished-name",
+                    ("name", name),
+                    ("user", session.Name)));
+            }
+            else if (shipwrecked.AllObjectivesComplete &&
+                Transform(survivor).GridUid == shipwrecked.Shuttle)
+            {
+                ev.AddLine(Loc.GetString("shipwrecked-list-escaped-name",
+                    ("name", name),
+                    ("user", session.Name)));
+            }
+            else
+            {
+                ev.AddLine(Loc.GetString("shipwrecked-list-survived-name",
+                    ("name", name),
+                    ("user", session.Name)));
+            }
+        }
 
+        ev.AddLine("");
+        ev.AddLine(Loc.GetString("shipwrecked-list-start-objectives"));
+
+        if (GetLaunchConditionConsole(shipwrecked))
+            ev.AddLine(Loc.GetString("shipwrecked-list-objective-console-pass"));
+        else
+            ev.AddLine(Loc.GetString("shipwrecked-list-objective-console-fail"));
+
+        if (GetLaunchConditionGenerator(shipwrecked))
+            ev.AddLine(Loc.GetString("shipwrecked-list-objective-generator-pass"));
+        else
+            ev.AddLine(Loc.GetString("shipwrecked-list-objective-generator-fail"));
+
+        if (GetLaunchConditionThrusters(shipwrecked, out var goodThrusters))
+        {
+            ev.AddLine(Loc.GetString("shipwrecked-list-objective-thrusters-pass",
+                    ("totalThrusterCount", shipwrecked.OriginalThrusterCount)));
+        }
+        else if(goodThrusters == 0)
+        {
+            ev.AddLine(Loc.GetString("shipwrecked-list-objective-thrusters-fail",
+                    ("totalThrusterCount", shipwrecked.OriginalThrusterCount)));
+        }
+        else
+        {
+            ev.AddLine(Loc.GetString("shipwrecked-list-objective-thrusters-partial",
+                    ("goodThrusterCount", shipwrecked.OriginalThrusterCount),
+                    ("totalThrusterCount", shipwrecked.OriginalThrusterCount)));
+        }
+
+        if (shipwrecked.AllObjectivesComplete)
+        {
             ev.AddLine("");
-            ev.AddLine(Loc.GetString("shipwrecked-list-start-objectives"));
-
-            if (GetLaunchConditionConsole(shipwrecked))
-                ev.AddLine(Loc.GetString("shipwrecked-list-objective-console-pass"));
-            else
-                ev.AddLine(Loc.GetString("shipwrecked-list-objective-console-fail"));
-
-            if (GetLaunchConditionGenerator(shipwrecked))
-                ev.AddLine(Loc.GetString("shipwrecked-list-objective-generator-pass"));
-            else
-                ev.AddLine(Loc.GetString("shipwrecked-list-objective-generator-fail"));
-
-            if (GetLaunchConditionThrusters(shipwrecked, out var goodThrusters))
-            {
-                ev.AddLine(Loc.GetString("shipwrecked-list-objective-thrusters-pass",
-                        ("totalThrusterCount", shipwrecked.OriginalThrusterCount)));
-            }
-            else if(goodThrusters == 0)
-            {
-                ev.AddLine(Loc.GetString("shipwrecked-list-objective-thrusters-fail",
-                        ("totalThrusterCount", shipwrecked.OriginalThrusterCount)));
-            }
-            else
-            {
-                ev.AddLine(Loc.GetString("shipwrecked-list-objective-thrusters-partial",
-                        ("goodThrusterCount", shipwrecked.OriginalThrusterCount),
-                        ("totalThrusterCount", shipwrecked.OriginalThrusterCount)));
-            }
-
-            if (shipwrecked.AllObjectivesComplete)
-            {
-                ev.AddLine("");
-                ev.AddLine(Loc.GetString("shipwrecked-list-all-objectives-complete"));
-            }
+            ev.AddLine(Loc.GetString("shipwrecked-list-all-objectives-complete"));
         }
     }
 
@@ -1446,7 +1726,7 @@ public sealed class ShipwreckedRuleSystem : GameRuleSystem<ShipwreckedRuleCompon
         return (_mobStateSystem.IsDead(uid) ||
             // Zombies are not dead-dead, so check for that.
             HasComp<ZombieComponent>(uid) ||
-            Deleted(uid));
+            TerminatingOrDeleted(uid));
     }
 
     private void CheckShouldRoundEnd(EntityUid uid, ShipwreckedRuleComponent component)
@@ -1469,6 +1749,12 @@ public sealed class ShipwreckedRuleSystem : GameRuleSystem<ShipwreckedRuleCompon
 
 # region Hecate Dynamic Responses
 
+    [ValidatePrototypeId<TagPrototype>]
+    private const string TagEngineeringAirlock = "EngineeringAirlock";
+
+    [ValidatePrototypeId<TagPrototype>]
+    private const string TagSecureSafe = "SecureSafe";
+
     private void OnInitHecate(EntityUid uid, ShipwreckedNPCHecateComponent component, MapInitEvent args)
     {
         component.GunSafe.Clear();
@@ -1477,24 +1763,23 @@ public sealed class ShipwreckedRuleSystem : GameRuleSystem<ShipwreckedRuleCompon
         var doorQuery = GetEntityQuery<DoorComponent>();
         var storageQuery = GetEntityQuery<EntityStorageComponent>();
 
-        var query = EntityQueryEnumerator<AccessReaderComponent, TransformComponent>();
-        while (query.MoveNext(out var entity, out var access, out var xform))
+        var shopGrid = Transform(uid).GridUid;
+
+        var tagQuery = GetEntityQuery<TagComponent>();
+
+        var query = EntityQueryEnumerator<TransformComponent, TagComponent>();
+        while (query.MoveNext(out var entity, out var xform, out var tagComponent))
         {
-            if (xform.GridUid != Transform(uid).GridUid)
+            if (xform.GridUid != shopGrid)
                 continue;
 
-            foreach (var accessList in access.AccessLists)
+            if (_tagSystem.HasTag(tagComponent, TagSecureSafe))
             {
-                if (accessList.Contains("Armory") && (storageQuery.HasComponent(entity) || doorQuery.HasComponent(entity)))
-                {
-                    // This is probably the gun safe.
-                    component.GunSafe.Add(entity);
-                }
-                if (accessList.Contains("Engineering") && (storageQuery.HasComponent(entity) || doorQuery.HasComponent(entity)))
-                {
-                    // This is probably the engine bay door.
-                    component.EngineBayDoor.Add(entity);
-                }
+                component.GunSafe.Add(entity);
+            }
+            else if (_tagSystem.HasTag(tagComponent, TagEngineeringAirlock))
+            {
+                component.EngineBayDoor.Add(entity);
             }
         }
     }
@@ -1536,7 +1821,7 @@ public sealed class ShipwreckedRuleSystem : GameRuleSystem<ShipwreckedRuleCompon
 
         if (!component.GunSafe.Any())
         {
-            _sawmill.Warning($"Hecate tried to unlock the gun safe, but it's missing.");
+            Log.Warning($"Hecate tried to unlock the gun safe, but it's missing.");
             return;
         }
 

@@ -1,5 +1,4 @@
 using System.Linq;
-using Content.Server.Backmen.Psionics;
 using Content.Shared.Interaction;
 using Content.Shared.Research.Prototypes;
 using Content.Shared.Chemistry.Reagent;
@@ -8,14 +7,15 @@ using Content.Shared.Mobs.Components;
 using Content.Server.Chat.Systems;
 using Content.Server.Chat.Managers;
 using Content.Server.Botany;
-using Content.Server.Chemistry.EntitySystems;
+using Content.Server.Chemistry.Containers.EntitySystems;
 using Content.Server.Fluids.EntitySystems;
 using Content.Shared.Backmen.Abilities.Psionics;
+using Content.Shared.Backmen.Psionics.Components;
 using Content.Shared.Backmen.Psionics.Glimmer;
 using Content.Shared.Chemistry.EntitySystems;
 using Robust.Shared.Prototypes;
 using Robust.Shared.Random;
-using Robust.Server.GameObjects;
+using Robust.Shared.Player;
 
 namespace Content.Server.Backmen.Research.Oracle;
 
@@ -25,7 +25,7 @@ public sealed class OracleSystem : EntitySystem
     [Dependency] private readonly IRobustRandom _random = default!;
     [Dependency] private readonly ChatSystem _chat = default!;
     [Dependency] private readonly IChatManager _chatManager = default!;
-    [Dependency] private readonly SolutionContainerSystem _solutionSystem = default!;
+    [Dependency] private readonly SharedSolutionContainerSystem _solutionSystem = default!;
     [Dependency] private readonly GlimmerSystem _glimmerSystem = default!;
     [Dependency] private readonly PuddleSystem _puddleSystem = default!;
 
@@ -74,7 +74,7 @@ public sealed class OracleSystem : EntitySystem
         "BluespaceCrystal",
         "InsulativeHeadcage",
         "CrystalNormality",
-        "BodyBag_Folded",
+        "BodyBagFolded",
         "BodyBag",
         "LockboxDecloner",
         "MopBucket",
@@ -113,15 +113,16 @@ public sealed class OracleSystem : EntitySystem
     public override void Update(float frameTime)
     {
         base.Update(frameTime);
-        foreach (var oracle in EntityQuery<OracleComponent>())
+        var q = EntityQueryEnumerator<OracleComponent>();
+        while (q.MoveNext(out var owner, out var oracle))
         {
             oracle.Accumulator += frameTime;
             oracle.BarkAccumulator += frameTime;
             if (oracle.BarkAccumulator >= oracle.BarkTime.TotalSeconds)
             {
                 oracle.BarkAccumulator = 0;
-                string message = Loc.GetString(_random.Pick(DemandMessages), ("item", oracle.DesiredPrototype.Name)).ToUpper();
-                _chat.TrySendInGameICMessage(oracle.Owner, message, InGameICChatType.Speak, false);
+                var message = Loc.GetString(_random.Pick(DemandMessages), ("item", oracle.DesiredPrototype.Name)).ToUpper();
+                _chat.TrySendInGameICMessage(owner, message, InGameICChatType.Speak, false);
             }
 
             if (oracle.Accumulator >= oracle.ResetTime.TotalSeconds)
@@ -158,7 +159,7 @@ public sealed class OracleSystem : EntitySystem
             ("telepathicChannelName", Loc.GetString("chat-manager-telepathic-channel-name")), ("message", message));
 
         _chatManager.ChatMessageToOne(Shared.Chat.ChatChannel.Telepathic,
-            message, messageWrap, uid, false, actor.PlayerSession.ConnectedClient, Color.PaleVioletRed);
+            message, messageWrap, uid, false, actor.PlayerSession.Channel, Color.PaleVioletRed);
 
         if (component.LastDesiredPrototype != null)
         {
@@ -167,7 +168,7 @@ public sealed class OracleSystem : EntitySystem
                 ("telepathicChannelName", Loc.GetString("chat-manager-telepathic-channel-name")), ("message", message2));
 
             _chatManager.ChatMessageToOne(Shared.Chat.ChatChannel.Telepathic,
-                message2, messageWrap2, uid, false, actor.PlayerSession.ConnectedClient, Color.PaleVioletRed);
+                message2, messageWrap2, uid, false, actor.PlayerSession.Channel, Color.PaleVioletRed);
         }
     }
     private void OnInteractUsing(EntityUid uid, OracleComponent component, InteractUsingEvent args)
@@ -199,13 +200,13 @@ public sealed class OracleSystem : EntitySystem
             return;
         }
 
-        EntityManager.QueueDeleteEntity(args.Used);
+        QueueDel(args.Used);
 
-        EntityManager.SpawnEntity("ResearchDisk5000", Transform(args.User).Coordinates);
+        Spawn("ResearchDisk5000", Transform(args.User).Coordinates);
 
         DispenseLiquidReward(uid);
 
-        int i = _random.Next(1, 4);
+        var i = _random.Next(1, 4);
 
         while (i != 0)
         {
@@ -229,30 +230,31 @@ public sealed class OracleSystem : EntitySystem
     }
     private void DispenseLiquidReward(EntityUid uid)
     {
-        if (!_solutionSystem.TryGetSolution(uid, OracleComponent.SolutionName, out var fountainSol))
+        if (!_solutionSystem.TryGetSolution(uid, OracleComponent.SolutionName, out var fountainEnt, out var fountainSol))
             return;
 
         var allReagents = _prototypeManager.EnumeratePrototypes<ReagentPrototype>()
             .Where(x => !x.Abstract)
             .Select(x => x.ID).ToList();
 
-        var amount = 20 + _random.Next(1, 30) + ((float) _glimmerSystem.Glimmer / 10f);
+        var amount = 20 + _random.Next(1, 30) + (_glimmerSystem.Glimmer / 10f);
         amount = (float) Math.Round(amount);
 
         var sol = new Solution();
-        var reagent = "";
+        string reagent;
 
         if (_random.Prob(0.2f))
         {
             reagent = _random.Pick(allReagents);
-        } else
+        }
+        else
         {
             reagent = _random.Pick(RewardReagents);
         }
 
         sol.AddReagent(reagent, amount);
 
-        _solutionSystem.TryMixAndOverflow(uid, fountainSol, sol, fountainSol.MaxVolume, out var overflowing);
+        _solutionSystem.TryMixAndOverflow(fountainEnt.Value, sol, fountainSol.MaxVolume, out var overflowing);
 
         if (overflowing != null && overflowing.Volume > 0)
             _puddleSystem.TrySpillAt(uid, overflowing, out var _);
@@ -266,7 +268,7 @@ public sealed class OracleSystem : EntitySystem
         if (_prototypeManager.TryIndex<EntityPrototype>(protoString, out var proto))
             component.DesiredPrototype = proto;
         else
-            Logger.Error("Oracle can't index prototype " + protoString);
+            Log.Error("Oracle can't index prototype " + protoString);
     }
 
     private string GetDesiredItem()
@@ -292,7 +294,9 @@ public sealed class OracleSystem : EntitySystem
         var allPlants = _prototypeManager.EnumeratePrototypes<SeedPrototype>().Select(x => x.ProductPrototypes[0]).ToList();
         var allProtos = allRecipes.Concat(allPlants).ToList();
         foreach (var proto in BlacklistedProtos)
+        {
             allProtos.Remove(proto);
+        }
 
         return allProtos;
     }

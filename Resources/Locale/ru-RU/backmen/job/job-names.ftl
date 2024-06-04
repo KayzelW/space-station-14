@@ -1,2 +1,3 @@
-job-name-fugitive = Беглец
-job-name-prisoner = Заключенный
+job-name-fugitive = беглец
+job-name-prisoner = заключенный
+job-name-roboticist = робототехник

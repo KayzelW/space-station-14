@@ -9,7 +9,7 @@ namespace Content.Shared.Backmen.Shipyard.Prototypes;
 
 [Prototype("vessel")]
 
-public sealed class VesselPrototype : IPrototype
+public sealed partial class VesselPrototype : IPrototype
 {
     [ViewVariables]
     [IdDataField]
@@ -50,4 +50,7 @@ public sealed class VesselPrototype : IPrototype
     /// </summary>
     [DataField("shuttlePath", required: true)]
     public ResPath ShuttlePath { get; } = default!;
+
+    [DataField("private")]
+    public bool Private { get; } = false;
 }

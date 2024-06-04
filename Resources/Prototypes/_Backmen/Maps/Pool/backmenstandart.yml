@@ -1,0 +1,20 @@
+- type: gameMapPool
+  id: BackmenDefaultMapPool
+  maps:
+  - BackmenAspid
+  - BackmenKettle
+  - BackmenTortuga
+  - BackmenHive
+  - BackmenShoukou
+  - BackmenRook
+  - Meta
+  - Fland
+  - CorvaxOutpost
+  - Cluster
+  - Saltern
+  - Omega
+  - Reach
+  - Bagel
+  - Train
+  - CorvaxSplit
+  - Oasis

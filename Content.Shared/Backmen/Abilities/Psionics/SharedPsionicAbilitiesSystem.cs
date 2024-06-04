@@ -1,11 +1,10 @@
-using Content.Shared.Backmen.Abilities.Psionics;
 using Content.Shared.Actions;
 using Content.Shared.Administration.Logs;
 using Content.Shared.Backmen.Psionics.Glimmer;
 using Content.Shared.Mobs;
 using Content.Shared.Mobs.Components;
 using Content.Shared.Popups;
-using Content.Shared.Backmen.Psionics.Glimmer;
+using Content.Shared.StatusEffect;
 using Robust.Shared.Random;
 using Robust.Shared.Serialization;
 
@@ -32,14 +31,15 @@ public sealed class SharedPsionicAbilitiesSystem : EntitySystem
 
     private void OnPowerUsed(EntityUid uid, PsionicComponent component, PsionicPowerUsedEvent args)
     {
-        foreach (var entity in _lookup.GetEntitiesInRange(uid, 10f))
+
+        foreach (var entity in _lookup.GetEntitiesInRange<MetapsionicPowerComponent>(Transform(uid).Coordinates, 10f))
         {
-            if (HasComp<MetapsionicPowerComponent>(entity) && entity != uid && !(TryComp<PsionicInsulationComponent>(entity, out var insul) && !insul.Passthrough))
-            {
-                _popups.PopupEntity(Loc.GetString("metapsionic-pulse-power", ("power", args.Power)), entity, entity, PopupType.LargeCaution);
-                args.Handled = true;
-                return;
-            }
+            if (entity.Owner == uid || TryComp<PsionicInsulationComponent>(entity, out var insul) && !insul.Passthrough)
+                continue;
+            
+            _popups.PopupEntity(Loc.GetString("metapsionic-pulse-power", ("power", args.Power)), entity, entity, PopupType.LargeCaution);
+            args.Handled = true;
+            return;
         }
     }
 

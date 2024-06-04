@@ -1,4 +1,6 @@
 ﻿using System.Diagnostics.CodeAnalysis;
+using System.Net;
+using System.Threading.Tasks;
 using Content.Corvax.Interfaces.Shared;
 using Robust.Shared.Maths;
 using Robust.Shared.Network;
@@ -12,4 +14,11 @@ public interface IServerSponsorsManager : ISharedSponsorsManager
     public bool TryGetOocColor(NetUserId userId, [NotNullWhen(true)] out Color? color);
     public int GetExtraCharSlots(NetUserId userId);
     public bool HavePriorityJoin(NetUserId userId);
+    public void Cleanup();
+}
+
+public interface IServerVPNGuardManager
+{
+    public void Initialize();
+    public Task<bool> IsConnectionVpn(IPAddress ip);
 }

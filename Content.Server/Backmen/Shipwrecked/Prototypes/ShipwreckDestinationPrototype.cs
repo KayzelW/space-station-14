@@ -1,4 +1,5 @@
 ﻿using Content.Server.Atmos;
+using Content.Shared.Atmos;
 using Content.Shared.Parallax.Biomes;
 using Content.Shared.Procedural;
 using Robust.Shared.Prototypes;
@@ -9,7 +10,7 @@ using Robust.Shared.Serialization.TypeSerializers.Implementations.Custom.Prototy
 namespace Content.Server.Backmen.Shipwrecked.Prototypes;
 
 [Prototype("shipwreckDestination")]
-public sealed class ShipwreckDestinationPrototype : IPrototype
+public sealed partial class ShipwreckDestinationPrototype : IPrototype
 {
     [ViewVariables]
     [IdDataField]

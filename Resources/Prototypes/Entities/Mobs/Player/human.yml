@@ -9,22 +9,38 @@
 #Syndie
 - type: entity
   parent: MobHuman
-  id: MobHumanSyndicateAgent
-  name: Syndicate Agent
-  suffix: Human
+  id: MobHumanSyndicateAgentBase
+  name: syndicate agent
+  suffix: Human, Base
   components:
+    - type: RandomHumanoidAppearance
+      randomizeName: false
+      hair: HairBald
     - type: Loadout
       prototypes: [SyndicateOperativeGearExtremelyBasic]
     - type: RandomMetadata
-      nameSegments: [corvax_names_death_commando] # Corvax-Localization
+      nameSegments: # Corvax-MRP
+      - names_first_male
+      - names_last_male
     - type: NpcFactionMember
       factions:
       - Syndicate
 
 - type: entity
-  parent: MobHumanSyndicateAgent
+  parent: MobHumanSyndicateAgentBase
+  id: MobHumanSyndicateAgent
+  name: syndicate agent
+  suffix: Human, Traitor
+  components:
+    # make the player a traitor once its taken
+    - type: AutoTraitor
+      giveUplink: false
+      giveObjectives: false
+
+- type: entity
+  parent: MobHumanSyndicateAgentBase
   id: MobHumanSyndicateAgentNukeops # Reinforcement exclusive to nukeops uplink
-  suffix: NukeOps
+  suffix: Human, NukeOps
   components:
     - type: NukeOperative
 
@@ -41,7 +57,7 @@
         - Flesh
     - type: UserInterface
       interfaces:
-        - key: enum.StoreUiKey.Key
+        enum.StoreUiKey.Key:
           type: StoreBoundUserInterface
     - type: Store
       categories:
@@ -79,7 +95,7 @@
       randomizeName: false
     - type: NukeOperative
     - type: Loadout
-      prototypes: [SyndicateOperativeGearFull]
+      prototypes: [SyndicateLoneOperativeGearFull]
     - type: RandomMetadata
       nameSegments:
       - SyndicateNamesPrefix
@@ -107,7 +123,7 @@
     rule: Ninja
   - type: AutoImplant
     implants:
-    - MicroBombImplant
+    - DeathAcidifierImplant
   - type: RandomMetadata
     nameSegments:
     - names_ninja_title

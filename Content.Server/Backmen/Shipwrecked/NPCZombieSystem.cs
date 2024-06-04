@@ -1,20 +1,22 @@
 ﻿using Content.Server.Backmen.Shipwrecked.Components;
 using Content.Server.Explosion.EntitySystems;
-using Content.Server.NPC;
-using Content.Server.NPC.HTN;
-using Content.Server.NPC.Systems;
+using Content.Server.Ghost.Roles.Components;
+using Content.Server.Humanoid.Systems;
+using Content.Server.RandomMetadata;
 using Content.Server.Zombies;
 using Content.Shared.Damage;
-using Content.Shared.Humanoid;
-using Content.Shared.Tools.Components;
 using Content.Shared.Weapons.Melee;
 using Content.Shared.Zombies;
-using Robust.Server.GameObjects;
-using Robust.Server.Physics;
-using Robust.Shared.Audio;
 using Robust.Shared.Prototypes;
 
 namespace Content.Server.Backmen.Shipwrecked;
+
+public sealed class NpcZombieMakeEvent : EntityEventArgs
+{
+    public EntityUid Target { get; set; }
+    public bool IsBoss { get; set; }
+}
+
 
 public sealed class NPCZombieSystem : EntitySystem
 {
@@ -24,23 +26,26 @@ public sealed class NPCZombieSystem : EntitySystem
     {
         base.Initialize();
 
-        SubscribeLocalEvent<ZombifiedOnSpawnComponent, ComponentStartup>(OnSpawnZombifiedStartup);
-        SubscribeLocalEvent<ZombieSurpriseComponent, ComponentInit>(OnZombieSurpriseInit);
+        SubscribeLocalEvent<ZombifiedOnSpawnComponent, MapInitEvent>(OnSpawnZombifiedStartup, after: new []{ typeof(RandomMetadataSystem), typeof(RandomHumanoidSystem) });
+        SubscribeLocalEvent<ZombieSurpriseComponent, MapInitEvent>(OnZombieSurpriseInit, after: new []{ typeof(RandomMetadataSystem), typeof(RandomHumanoidSystem) });
         SubscribeLocalEvent<ZombieWakeupOnTriggerComponent, TriggerEvent>(OnZombieWakeupTrigger);
+        SubscribeLocalEvent<NpcZombieMakeEvent>(OnZombifyEntity);
     }
 
-    private void ZombifyEntity(EntityUid uid, bool isBoss)
+    private void OnZombifyEntity(NpcZombieMakeEvent ev)
     {
+        if (TerminatingOrDeleted(ev.Target))
+            return;
 
+        _zombieSystem.ZombifyEntity(ev.Target);
+        RemComp<GhostTakeoverAvailableComponent>(ev.Target);
+        RemComp<GhostRoleComponent>(ev.Target);
 
-        _zombieSystem.ZombifyEntity(uid);
-
-
-        var z = EnsureComp<ZombieComponent>(uid);
+        var z = EnsureComp<ZombieComponent>(ev.Target);
         z.MaxZombieInfectionChance = 0.0001f;
         z.MinZombieInfectionChance = 0.00001f;
 
-        var melee = EnsureComp<MeleeWeaponComponent>(uid); // npc (lower damage, like a flesh)
+        var melee = EnsureComp<MeleeWeaponComponent>(ev.Target); // npc (lower damage, like a flesh)
         melee.Angle = 0;
         melee.AttackRate = 1;
         melee.BluntStaminaDamageFactor = 0.5;
@@ -49,7 +54,7 @@ public sealed class NPCZombieSystem : EntitySystem
 
 
 
-        if (!isBoss)
+        if (!ev.IsBoss)
         {
             z.HealingOnBite = new();
 
@@ -63,7 +68,7 @@ public sealed class NPCZombieSystem : EntitySystem
             melee.Damage = dspec;
             z.HealingOnBite = new();
             z.ZombieMovementSpeedDebuff = 0.60f;
-            Dirty(uid,melee);
+            Dirty(ev.Target,melee);
         }
         else
         {
@@ -76,7 +81,7 @@ public sealed class NPCZombieSystem : EntitySystem
                 }
             };
             melee.Damage = dspec;
-            Dirty(uid,melee);
+            Dirty(ev.Target,melee);
             DamageSpecifier hspec = new()
             {
                 DamageDict = new()
@@ -88,18 +93,28 @@ public sealed class NPCZombieSystem : EntitySystem
             };
             z.HealingOnBite = hspec;
         }
-        Dirty(uid,z);
+        Dirty(ev.Target,z);
     }
 
-    private void OnSpawnZombifiedStartup(EntityUid uid, ZombifiedOnSpawnComponent component, ComponentStartup args)
+    private void OnSpawnZombifiedStartup(EntityUid uid, ZombifiedOnSpawnComponent component, MapInitEvent args)
     {
+        if (TerminatingOrDeleted(uid))
+            return;
+
         RemCompDeferred<ZombifiedOnSpawnComponent>(uid);
-        ZombifyEntity(uid, component.IsBoss);
+        QueueLocalEvent(new NpcZombieMakeEvent
+        {
+            Target = uid,
+            IsBoss = component.IsBoss
+        });
     }
 
     [ValidatePrototypeId<EntityPrototype>] private const string ZombieSurpriseDetector = "ZombieSurpriseDetector";
-    private void OnZombieSurpriseInit(EntityUid uid, ZombieSurpriseComponent component, ComponentInit args)
+    private void OnZombieSurpriseInit(EntityUid uid, ZombieSurpriseComponent component, MapInitEvent args)
     {
+        if (TerminatingOrDeleted(uid))
+            return;
+
         // Spawn a separate collider attached to the entity.
         var trigger = Spawn(ZombieSurpriseDetector, Transform(uid).Coordinates);
         Comp<ZombieWakeupOnTriggerComponent>(trigger).ToZombify = uid;
@@ -113,6 +128,10 @@ public sealed class NPCZombieSystem : EntitySystem
         if (toZombify == null || Deleted(toZombify))
             return;
 
-        ZombifyEntity(toZombify.Value, false);
+        QueueLocalEvent(new NpcZombieMakeEvent
+        {
+            Target = toZombify.Value,
+            IsBoss = false
+        });
     }
 }

@@ -8,11 +8,9 @@
       - id: Eftpos # backmen
         amount: 3 # backmen
       - id: ClothingNeckCloakQm
-      - id: ClothingHeadsetCargo
-      - id: ClothingUniformJumpsuitQMTurtleneck
-      - id: ClothingUniformJumpskirtQMTurtleneck
-      - id: ClothingHandsGlovesColorBrown
+      - id: BoxFolderQmClipboard
       - id: CargoRequestComputerCircuitboard
+      - id: CargoSaleComputerCircuitboard
       - id: CargoShuttleComputerCircuitboard
       - id: CargoShuttleConsoleCircuitboard
       - id: SalvageShuttleConsoleCircuitboard
@@ -21,10 +19,13 @@
         prob: 0.50
       - id: DoorRemoteCargo
       - id: RubberStampQm
+      - id: RubberStampDenied
+      - id: RubberStampApproved
       - id: ClothingHeadsetAltCargo
       - id: BoxEncryptionKeyCargo
       - id: AntiPsychicKnife # backmen
       - id: ClothingHeadCage # backmen
+      - id: PrinterDocFlatpack # Corvax-Printer
 
 - type: entity
   id: LockerCaptainFilledHardsuit
@@ -37,9 +38,6 @@
       - id: NukeDisk
       - id: PinpointerNuclear
       - id: CaptainIDCard
-      - id: ClothingHeadHatCaptain
-      - id: ClothingNeckCloakCap
-      - id: ClothingHandsGlovesCaptain
       - id: ClothingOuterHardsuitCap
       - id: ClothingMaskGasCaptain
       - id: WeaponDisabler
@@ -52,9 +50,6 @@
         prob: 0.25
       - id: ClothingBeltSheathFilled
       - id: DoorRemoteCommand
-      - id: ClothingNeckCloakCapFormal
-      - id: ClothingUniformJumpsuitCapFormal
-      - id: ClothingUniformJumpskirtCapFormalDress
       - id: RubberStampCaptain
       - id: WeaponAntiqueLaser
       - id: JetpackCaptainFilled
@@ -65,7 +60,7 @@
 
 - type: entity
   id: LockerCaptainFilled
-  suffix: Filled
+  suffix: Filled, AntiqueLaser
   parent: LockerCaptain
   components:
   - type: StorageFill
@@ -76,9 +71,6 @@
       - id: NukeDisk
       - id: PinpointerNuclear
       - id: CaptainIDCard
-      - id: ClothingHeadHatCaptain
-      - id: ClothingNeckCloakCap
-      - id: ClothingHandsGlovesCaptain
       - id: WeaponDisabler
       - id: CommsComputerCircuitboard
       - id: ClothingHeadsetAltCommand
@@ -89,9 +81,6 @@
         prob: 0.25
       - id: ClothingBeltSheathFilled
       - id: DoorRemoteCommand
-      - id: ClothingNeckCloakCapFormal
-      - id: ClothingUniformJumpsuitCapFormal
-      - id: ClothingUniformJumpskirtCapFormalDress
       - id: RubberStampCaptain
       - id: WeaponAntiqueLaser
       - id: JetpackCaptainFilled
@@ -103,6 +92,31 @@
       # Corvax-Resprite-End
       - id: AntiPsychicKnife  # backmen
       - id: ClothingHeadCage # backmen
+
+- type: entity
+  id: LockerCaptainFilledNoLaser
+  suffix: Filled
+  parent: LockerCaptain
+  components:
+  - type: StorageFill
+    contents:
+      - id: ClothingOuterArmorCaptainCarapace
+      - id: NukeDisk
+      - id: PinpointerNuclear
+      - id: CaptainIDCard
+      - id: WeaponDisabler
+      - id: CommsComputerCircuitboard
+      - id: ClothingHeadsetAltCommand
+      - id: SpaceCash1000
+      - id: PlushieNuke
+        prob: 0.1
+      - id: CigarGoldCase
+        prob: 0.25
+      - id: ClothingBeltSheathFilled
+      - id: DoorRemoteCommand
+      - id: RubberStampCaptain
+      - id: JetpackCaptainFilled
+      - id: MedalCase
 
 - type: entity
   id: LockerHeadOfPersonnelFilled
@@ -122,7 +136,6 @@
       - id: BoxHeadset
       - id: IDComputerCircuitboard
       - id: WeaponDisabler
-      - id: ClothingOuterWinterHoP
       - id: CigarGoldCase
         prob: 0.25
         # Fuck the HoP they don't deserve fucking cigars.
@@ -130,6 +143,8 @@
       - id: DoorRemoteService
       - id: ClothingNeckGoldmedal
       - id: RubberStampHop
+      - id: RubberStampDenied
+      - id: RubberStampApproved
       - id: BoxEncryptionKeyPassenger
       - id: BoxEncryptionKeyService
       - id: ClothingBackpackIan
@@ -138,6 +153,7 @@
       - id: AccessConfigurator
       - id: AntiPsychicKnife  # backmen
       - id: ClothingHeadCage # backmen
+      - id: PrinterDocFlatpack # Corvax-Printer
 
 - type: entity
   id: LockerChiefEngineerFilledHardsuit
@@ -148,14 +164,8 @@
     contents:
       - id: ClothingOuterHardsuitEngineeringWhite
       - id: ClothingMaskBreath
-      - id: ClothingUniformJumpsuitChiefEngineerTurtle
-      - id: ClothingUniformJumpskirtChiefEngineerTurtle
-      - id: OxygenTankFilled
-      - id: NitrogenTankFilled
-      - id: ClothingNeckCloakCe
       - id: ClothingEyesGlassesMeson
       - id: ClothingBeltChiefEngineerFilled
-      - id: ClothingHeadHatBeretEngineering
       - id: ClothingShoesBootsMagAdv
       - id: ClothingHandsGlovesColorYellow
       - id: CigarCase
@@ -168,6 +178,8 @@
       - id: AccessConfigurator
       - id: AntiPsychicKnife  # backmen
       - id: ClothingHeadCage # backmen
+      - id: RCD
+      - id: RCDAmmo
 
 - type: entity
   id: LockerChiefEngineerFilled
@@ -181,10 +193,7 @@
       - id: ClothingNeckCloakCe
       - id: ClothingEyesGlassesMeson
       - id: ClothingBeltChiefEngineerFilled
-      - id: ClothingHeadHatBeretEngineering
       - id: ClothingHandsGlovesColorYellow
-      - id: ClothingUniformJumpsuitChiefEngineerTurtle
-      - id: ClothingUniformJumpskirtChiefEngineerTurtle
       - id: CigarCase
         prob: 0.15
       - id: DoorRemoteEngineering
@@ -194,6 +203,8 @@
       - id: AccessConfigurator
       - id: AntiPsychicKnife  # backmen
       - id: ClothingHeadCage # backmen
+      - id: RCD
+      - id: RCDAmmo
 
 - type: entity
   id: LockerChiefMedicalOfficerFilledHardsuit
@@ -204,11 +215,10 @@
     contents:
       - id: MedkitFilled
       - id: ClothingHandsGlovesNitrile
-      #- name: ClothingEyesHudMedical #Removed until working properly
+      - id: ClothingEyesHudMedical
       - id: ClothingHeadsetAltMedical
       - id: ClothingCloakCmo
       - id: ClothingBackpackDuffelSurgeryFilled
-      - id: ClothingOuterCoatLabCmo
       - id: ClothingMaskSterile
       - id: ClothingHeadHatBeretCmo
       - id: ClothingOuterHardsuitMedical
@@ -220,6 +230,8 @@
       - id: BoxEncryptionKeyMedical
       - id: AntiPsychicKnife # backmen
       - id: ClothingHeadCage # backmen
+      - id: MetempsychoticMachineCircuitboard # backmen
+      - id: MaterialBiomass # backmen
 
 - type: entity
   id: LockerChiefMedicalOfficerFilled
@@ -232,13 +244,10 @@
         amount: 3 # backmen
       - id: MedkitFilled
       - id: ClothingHandsGlovesNitrile
-      #- name: ClothingEyesHudMedical #Removed until working properly
+      - id: ClothingEyesHudMedical
       - id: ClothingHeadsetAltMedical
-      - id: ClothingCloakCmo
       - id: ClothingBackpackDuffelSurgeryFilled
-      - id: ClothingOuterCoatLabCmo
       - id: ClothingMaskSterile
-      - id: ClothingHeadHatBeretCmo
       - id: Hypospray
       - id: HandheldCrewMonitor
       - id: DoorRemoteMedical
@@ -247,6 +256,8 @@
       - id: BoxEncryptionKeyMedical
       - id: AntiPsychicKnife # backmen
       - id: ClothingHeadCage # backmen
+      - id: MetempsychoticMachineCircuitboard # backmen
+      - id: MaterialBiomass # backmen
 
 - type: entity
   id: LockerResearchDirectorFilledHardsuit
@@ -258,22 +269,19 @@
       - id: ResearchComputerCircuitboard
       - id: ProtolatheMachineCircuitboard
       - id: CircuitImprinterMachineCircuitboard
-      - id: ClothingNeckCloakRd
-      - id: ClothingHeadsetMedicalScience
       - id: ClothingOuterHardsuitRd
       - id: HandTeleporter
       - id: DoorRemoteResearch
-      - id: ClothingHeadHatBeretRND
-      - id: ClothingHandsGlovesColorPurple
       - id: ClothingBeltUtilityFilled
       - id: RubberStampRd
-      - id: ClothingHeadsetAltScience
       - id: BoxEncryptionKeyScience
       - id: AntiPsychicKnife # backmen
       - id: ClothingHeadCage # backmen
       - id: PresentOracle # backmen
       - id: PresentSophie # backmen
       - id: PonderingOrbTelepathic # backmen
+      - id: ClothingHeadsetAltScience
+      - id: EncryptionKeyBinary
 
 - type: entity
   id: LockerResearchDirectorFilled
@@ -287,21 +295,18 @@
       - id: ResearchComputerCircuitboard
       - id: ProtolatheMachineCircuitboard
       - id: CircuitImprinterMachineCircuitboard
-      - id: ClothingNeckCloakRd
-      - id: ClothingHeadsetMedicalScience
       - id: HandTeleporter
       - id: DoorRemoteResearch
-      - id: ClothingHeadHatBeretRND
-      - id: ClothingHandsGlovesColorPurple
       - id: ClothingBeltUtilityFilled
       - id: RubberStampRd
-      - id: ClothingHeadsetAltScience
       - id: BoxEncryptionKeyScience
       - id: AntiPsychicKnife # backmen
       - id: ClothingHeadCage # backmen
       - id: PresentOracle # backmen
       - id: PresentSophie # backmen
       - id: PonderingOrbTelepathic # backmen
+      - id: ClothingHeadsetAltScience
+      - id: EncryptionKeyBinary
 
 - type: entity
   id: LockerHeadOfSecurityFilledHardsuit
@@ -310,17 +315,17 @@
   components:
   - type: StorageFill
     contents:
-      - id: ClothingEyesHudSecurity
       - id: WeaponDisabler
       - id: ClothingHeadHatBeretHoS
       - id: ClothingHeadHatCapHoS # Corvax-SecFashion
         prob: 0.5
-      - id: ClothingHeadHatHoshat
-      - id: ClothingNeckCloakHos
       - id: ClothingOuterCoatHoSTrench
       - id: ClothingOuterCoatHoSGreatcoat # Corvax-Resprite
       - id: ClothingUniformJumpskirtHoSAlt
       - id: ClothingUniformJumpsuitHoSAlt
+      - id: ClothingOuterCoatHoSTrench
+      - id: ClothingMaskNeckGaiter
+      - id: ClothingOuterCoatHoSGreatcoat # Corvax-Resprite
       - id: ClothingOuterHardsuitSecurityRed
       - id: ClothingMaskGasSwat
 #      - id: ClothingShoeSlippersDuck # Corvax-Resprite: Need more space for style
@@ -334,16 +339,15 @@
       - id: CigarGoldCase
         prob: 0.50
       - id: DoorRemoteSecurity
-      - id: ClothingUniformJumpskirtHosFormal
-      - id: ClothingUniformJumpsuitHosFormal
       - id: RubberStampHos
       - id: SecurityTechFabCircuitboard
       - id: JetpackSecurityFilled
       - id: BoxEncryptionKeySecurity
       - id: HoloprojectorSecurity
       - id: BookSecretDocuments
-      - id: BookBusido # Corvax-Books
+      - id: WeaponMultiphaseEnergyGun
       - id: AntiPsychicKnife # backmen
+      - id: BookBusido # Corvax-Books
       - id: ClothingHeadCage # backmen
 
 - type: entity
@@ -353,13 +357,10 @@
   components:
   - type: StorageFill
     contents:
-      - id: ClothingEyesHudSecurity
       - id: WeaponDisabler
       - id: ClothingHeadHatBeretHoS
       - id: ClothingHeadHatCapHoS # Corvax-SecFashion
         prob: 0.5
-      - id: ClothingHeadHatHoshat
-      - id: ClothingNeckCloakHos
       - id: ClothingOuterCoatHoSTrench
       - id: ClothingOuterCoatHoSGreatcoat # Corvax-Resprite
       - id: ClothingUniformJumpskirtHoSAlt
@@ -376,6 +377,10 @@
 #        prob: 0.2
       - id: DrinkVacuumFlask
         prob: 0.8
+      - id: ClothingOuterCoatHoSTrench
+      - id: ClothingMaskNeckGaiter
+      - id: ClothingMaskNeckGaiter
+      - id: ClothingOuterCoatHoSGreatcoat # Corvax-Resprite
       - id: ClothingBeltSecurityFilled
       - id: ClothingHeadsetAltSecurity
       - id: ClothingEyesGlassesSecurity
@@ -383,12 +388,27 @@
       - id: CigarGoldCase
         prob: 0.50
       - id: DoorRemoteSecurity
-      - id: ClothingUniformJumpskirtHosFormal
-      - id: ClothingUniformJumpsuitHosFormal
       - id: RubberStampHos
       - id: SecurityTechFabCircuitboard
       - id: BoxEncryptionKeySecurity
       - id: HoloprojectorSecurity
       - id: BookSecretDocuments
+      - id: WeaponMultiphaseEnergyGun
       - id: AntiPsychicKnife # backmen
       - id: ClothingHeadCage # backmen
+
+- type: entity
+  id: LockerFreezerVaultFilled
+  suffix: Vault, Locked
+  parent: LockerFreezerBase
+  components:
+  - type: AccessReader
+    access: [ [ "Command" ] ]
+  - type: StorageFill
+    contents:
+    - id: WeaponRevolverDeckard
+    - id: ClothingOuterHardsuitBasic
+    - id: JetpackBlue
+    - id: SpaceCash1000
+    - id: BeachBall
+    - id: BikeHorn

@@ -1,19 +1,22 @@
 ﻿using System.Threading.Tasks;
 using Content.Server.Database;
-using Content.Server.Ghost.Roles;
-using Content.Server.Ghost.Roles.Components;
-using Content.Server.Players;
+using Content.Server.GameTicking;
+using Content.Server.Traits;
 using Content.Shared.Backmen;
-using Content.Shared.Backmen.CCVar;
+using Content.Shared.Backmen.WL;
+using Content.Shared.CombatMode.Pacification;
+using Content.Shared.Humanoid.Prototypes;
+using Content.Shared.Species.Components;
 using JetBrains.Annotations;
 using Robust.Server.Player;
-using Robust.Shared.Configuration;
 using Robust.Shared.Network;
+using Robust.Shared.Player;
+using Robust.Shared.Prototypes;
 
 namespace Content.Server.Backmen.RoleWhitelist;
 
 [UsedImplicitly]
-public sealed class WhitelistSystem  : EntitySystem
+public sealed class WhitelistSystem  : SharedWhitelistSystem
 {
     [Dependency] private readonly IServerNetManager _net = default!;
     [Dependency] private readonly IPlayerManager _playerManager = default!;
@@ -29,6 +32,49 @@ public sealed class WhitelistSystem  : EntitySystem
 
         _net.Connecting += NetOnConnecting;
         _net.Connected += NetOnConnected;
+
+        SubscribeLocalEvent<PlayerSpawnCompleteEvent>(OnPlayerSpawnComplete, after: new []{ typeof(TraitSystem) });
+    }
+
+    [ValidatePrototypeId<SpeciesPrototype>]
+    private const string SpecieDiona = "Diona";
+
+    private void OnPlayerSpawnComplete(PlayerSpawnCompleteEvent msg)
+    {
+        if (!IsInWhitelist(msg.Player))
+        {
+            return;
+        }
+
+        if (msg.Profile.Species == SpecieDiona)
+        {
+            RemComp<PacifiedComponent>(msg.Mob);
+        }
+    }
+
+    [ValidatePrototypeId<EntityPrototype>]
+    private const string DionaReform = "MobDionaReformed";
+    public override void ProcessReform(EntityUid child, Entity<ReformComponent> source)
+    {
+        ActorComponent? actor = null;
+        if (!Resolve(child, ref actor, false))
+        {
+            if (!Resolve(source, ref actor, false))
+            {
+                return;
+            }
+        }
+
+        if (!IsInWhitelist(actor.PlayerSession))
+        {
+            return;
+        }
+
+        if (source.Comp.ReformPrototype == DionaReform)
+        {
+            RemCompDeferred<PacifiedComponent>(child);
+        }
+
     }
 
     private void NetOnConnected(object? sender, NetChannelArgs e)
@@ -52,12 +98,12 @@ public sealed class WhitelistSystem  : EntitySystem
     {
         return _whitelisted.Contains(p);
     }
-    public bool IsInWhitelist(IPlayerSession p)
+    public bool IsInWhitelist(ICommonSession p)
     {
         return _whitelisted.Contains(p.UserId);
     }
 
-    public void AddWhitelist(IPlayerSession p)
+    public void AddWhitelist(ICommonSession p)
     {
         if (_whitelisted.Add(p.UserId))
         {
@@ -71,7 +117,7 @@ public sealed class WhitelistSystem  : EntitySystem
             SendWhitelistCached(p);
         }
     }
-    public void RemoveWhitelist(IPlayerSession p)
+    public void RemoveWhitelist(ICommonSession p)
     {
         if (_whitelisted.Remove(p.UserId))
         {
@@ -100,9 +146,9 @@ public sealed class WhitelistSystem  : EntitySystem
             SendWhitelistCached(p);
         }
     }
-    public void SendWhitelistCached(IPlayerSession playerSession)
+    public void SendWhitelistCached(ICommonSession playerSession)
     {
-        SendWhitelistCached(playerSession.ConnectedClient);
+        SendWhitelistCached(playerSession.Channel);
     }
 
     public override void Shutdown()
