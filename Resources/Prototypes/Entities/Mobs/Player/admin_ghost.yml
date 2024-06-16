@@ -86,14 +86,14 @@
   - type: Stripping
   - type: SolutionScanner
   - type: IgnoreUIRange
-  - type: ShowRevIcons
-  - type: ShowZombieIcons
+  - type: ShowAntagIcons
   - type: Inventory
     templateId: aghost
   - type: InventorySlots
   - type: Loadout
     prototypes: [ MobAghostGear ]
   - type: BypassInteractionChecks
+  - type: BkmSupermatterImmune
 
 - type: entity
   id: ActionAGhostShowSolar

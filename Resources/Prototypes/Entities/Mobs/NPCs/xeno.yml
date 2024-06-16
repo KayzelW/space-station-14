@@ -22,7 +22,7 @@
       NavSmash: !type:Bool
         true
   - type: Tool
-    speed: 1.5
+    speedModifier: 1.5
     qualities:
       - Prying
   - type: Prying
@@ -131,6 +131,7 @@
   - type: NightVision
     isToggle: true
     color: "#808080"
+    playSoundOn: false
 
 - type: entity
   name: Praetorian
